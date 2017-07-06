@@ -367,6 +367,7 @@ set(MBGL_CORE_FILES
     include/mbgl/style/conversion/constant.hpp
     include/mbgl/style/conversion/coordinate.hpp
     include/mbgl/style/conversion/data_driven_property_value.hpp
+    include/mbgl/style/conversion/expression.hpp
     include/mbgl/style/conversion/filter.hpp
     include/mbgl/style/conversion/function.hpp
     include/mbgl/style/conversion/geojson.hpp
@@ -394,6 +395,19 @@ set(MBGL_CORE_FILES
     src/mbgl/style/conversion/tileset.cpp
     src/mbgl/style/conversion/transition_options.cpp
 
+    # style/expression
+    include/mbgl/style/expression/definitions.hpp
+    include/mbgl/style/expression/expression.hpp
+    include/mbgl/style/expression/parse.hpp
+    include/mbgl/style/expression/parsing_context.hpp
+    include/mbgl/style/expression/type.hpp
+    include/mbgl/style/expression/type_check.hpp
+    include/mbgl/style/expression/value.hpp
+    src/mbgl/style/expression/definitions.cpp
+    src/mbgl/style/expression/type.cpp
+    src/mbgl/style/expression/type_check.cpp
+    src/mbgl/style/expression/value.cpp
+
     # style/function
     include/mbgl/style/function/camera_function.hpp
     include/mbgl/style/function/categorical_stops.hpp
@@ -406,6 +420,7 @@ set(MBGL_CORE_FILES
     include/mbgl/style/function/interval_stops.hpp
     include/mbgl/style/function/source_function.hpp
     src/mbgl/style/function/categorical_stops.cpp
+    src/mbgl/style/function/expression.cpp
     src/mbgl/style/function/identity_stops.cpp
 
     # style/layers
