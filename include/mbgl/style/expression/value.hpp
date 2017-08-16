@@ -69,7 +69,6 @@ std::string stringify(const Value& value);
 template <typename T>
 type::Type valueTypeToExpressionType();
 
-
 } // namespace expression
 } // namespace style
 } // namespace mbgl

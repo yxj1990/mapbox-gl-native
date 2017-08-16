@@ -14,7 +14,7 @@ namespace expression {
 namespace detail {
 
 // used for storing intermediate state during parsing
-struct ExponentialInterpolation { float base; std::string name = "exponential"; };
+struct ExponentialInterpolation { float base; std::string name; };
 struct StepInterpolation {};
 
 } // namespace detail
@@ -59,7 +59,7 @@ struct ParseCurve {
                 ctx.error("Exponential interpolation requires a numeric base.");
                 return ParseResult();
             }
-            interpolation = detail::ExponentialInterpolation { static_cast<float>(*base) };
+            interpolation = detail::ExponentialInterpolation { static_cast<float>(*base), "exponential" };
         } else {
             ctx.error("Unknown interpolation type " + (interpName ? *interpName : ""));
             return ParseResult();

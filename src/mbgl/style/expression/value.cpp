@@ -268,36 +268,80 @@ template <> type::Type valueTypeToExpressionType<std::vector<Value>>() { return 
 
 template Value toExpressionValue(const mbgl::Value&);
 
-// instantiate templates fromExpressionValue<T>, toExpressionValue<T>, and valueTypeToExpressionType<T>
-template <typename T>
-struct instantiate {
-    void noop(const T& t) {
-        fromExpressionValue<T>(toExpressionValue(t));
-        valueTypeToExpressionType<T>();
-    }
-};
 
 // for to_rgba expression
-template struct instantiate<std::array<double, 4>>;
+template type::Type valueTypeToExpressionType<std::array<double, 4>>();
+template optional<std::array<double, 4>> fromExpressionValue<std::array<double, 4>>(const Value&);
+template Value toExpressionValue(const std::array<double, 4>&);
 
 // layout/paint property types
-template struct instantiate<float>;
-template struct instantiate<std::array<float, 2>>;
-template struct instantiate<std::array<float, 4>>;
-template struct instantiate<std::vector<float>>;
-template struct instantiate<std::vector<std::string>>;
-template struct instantiate<AlignmentType>;
-template struct instantiate<CirclePitchScaleType>;
-template struct instantiate<IconTextFitType>;
-template struct instantiate<LineCapType>;
-template struct instantiate<LineJoinType>;
-template struct instantiate<SymbolPlacementType>;
-template struct instantiate<TextAnchorType>;
-template struct instantiate<TextJustifyType>;
-template struct instantiate<TextTransformType>;
-template struct instantiate<TranslateAnchorType>;
-template struct instantiate<LightAnchorType>;
-template struct instantiate<Position>;
+template type::Type valueTypeToExpressionType<float>();
+template optional<float> fromExpressionValue<float>(const Value&);
+template Value toExpressionValue(const float&);
+
+template type::Type valueTypeToExpressionType<std::array<float, 2>>();
+template optional<std::array<float, 2>> fromExpressionValue<std::array<float, 2>>(const Value&);
+template Value toExpressionValue(const std::array<float, 2>&);
+
+template type::Type valueTypeToExpressionType<std::array<float, 4>>();
+template optional<std::array<float, 4>> fromExpressionValue<std::array<float, 4>>(const Value&);
+template Value toExpressionValue(const std::array<float, 4>&);
+
+template type::Type valueTypeToExpressionType<std::vector<float>>();
+template optional<std::vector<float>> fromExpressionValue<std::vector<float>>(const Value&);
+template Value toExpressionValue(const std::vector<float>&);
+
+template type::Type valueTypeToExpressionType<std::vector<std::string>>();
+template optional<std::vector<std::string>> fromExpressionValue<std::vector<std::string>>(const Value&);
+template Value toExpressionValue(const std::vector<std::string>&);
+
+template type::Type valueTypeToExpressionType<AlignmentType>();
+template optional<AlignmentType> fromExpressionValue<AlignmentType>(const Value&);
+template Value toExpressionValue(const AlignmentType&);
+
+template type::Type valueTypeToExpressionType<CirclePitchScaleType>();
+template optional<CirclePitchScaleType> fromExpressionValue<CirclePitchScaleType>(const Value&);
+template Value toExpressionValue(const CirclePitchScaleType&);
+
+template type::Type valueTypeToExpressionType<IconTextFitType>();
+template optional<IconTextFitType> fromExpressionValue<IconTextFitType>(const Value&);
+template Value toExpressionValue(const IconTextFitType&);
+
+template type::Type valueTypeToExpressionType<LineCapType>();
+template optional<LineCapType> fromExpressionValue<LineCapType>(const Value&);
+template Value toExpressionValue(const LineCapType&);
+
+template type::Type valueTypeToExpressionType<LineJoinType>();
+template optional<LineJoinType> fromExpressionValue<LineJoinType>(const Value&);
+template Value toExpressionValue(const LineJoinType&);
+
+template type::Type valueTypeToExpressionType<SymbolPlacementType>();
+template optional<SymbolPlacementType> fromExpressionValue<SymbolPlacementType>(const Value&);
+template Value toExpressionValue(const SymbolPlacementType&);
+
+template type::Type valueTypeToExpressionType<TextAnchorType>();
+template optional<TextAnchorType> fromExpressionValue<TextAnchorType>(const Value&);
+template Value toExpressionValue(const TextAnchorType&);
+
+template type::Type valueTypeToExpressionType<TextJustifyType>();
+template optional<TextJustifyType> fromExpressionValue<TextJustifyType>(const Value&);
+template Value toExpressionValue(const TextJustifyType&);
+
+template type::Type valueTypeToExpressionType<TextTransformType>();
+template optional<TextTransformType> fromExpressionValue<TextTransformType>(const Value&);
+template Value toExpressionValue(const TextTransformType&);
+
+template type::Type valueTypeToExpressionType<TranslateAnchorType>();
+template optional<TranslateAnchorType> fromExpressionValue<TranslateAnchorType>(const Value&);
+template Value toExpressionValue(const TranslateAnchorType&);
+
+template type::Type valueTypeToExpressionType<LightAnchorType>();
+template optional<LightAnchorType> fromExpressionValue<LightAnchorType>(const Value&);
+template Value toExpressionValue(const LightAnchorType&);
+
+template type::Type valueTypeToExpressionType<Position>();
+template optional<Position> fromExpressionValue<Position>(const Value&);
+template Value toExpressionValue(const Position&);
 
 } // namespace expression
 } // namespace style
