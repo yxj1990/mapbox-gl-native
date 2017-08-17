@@ -2784,6 +2784,11 @@ public:
     {
         latLngs.push_back({coordinates[i].latitude, coordinates[i].longitude});
     }
+    
+    if (count == 4 && coordinates[1].longitude > 0 && coordinates[3].longitude < 0) {
+        latLngs = [self normalizeCoordinatesForAntimeridianSW:coordinates[1] ne:coordinates[3]];
+        
+    }
 
     mbgl::CameraOptions cameraOptions = _mbglMap->cameraForLatLngs(latLngs, padding);
     if (direction >= 0)
@@ -2822,6 +2827,19 @@ public:
     _mbglMap->cancelTransitions();
     _mbglMap->easeTo(cameraOptions, animationOptions);
     [self didChangeValueForKey:@"visibleCoordinateBounds"];
+}
+
+- (std::vector<mbgl::LatLng>)normalizeCoordinatesForAntimeridianSW:(CLLocationCoordinate2D)sw ne:(CLLocationCoordinate2D)ne
+{
+    CLLocationDegrees longitude = (180 + (180 - fabs(sw.longitude))) * -1;
+    sw = CLLocationCoordinate2DMake(sw.latitude, longitude);
+    
+    std::vector<mbgl::LatLng> latLngs = { {ne.latitude, sw.longitude},
+        {sw.latitude, sw.longitude},
+        {sw.latitude, ne.longitude},
+        {ne.latitude, ne.longitude} };
+    
+    return latLngs;
 }
 
 + (NS_SET_OF(NSString *) *)keyPathsForValuesAffectingDirection

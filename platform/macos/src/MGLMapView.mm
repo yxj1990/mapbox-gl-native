@@ -1238,6 +1238,13 @@ public:
 
     mbgl::EdgeInsets padding = MGLEdgeInsetsFromNSEdgeInsets(insets);
     padding += MGLEdgeInsetsFromNSEdgeInsets(self.contentInsets);
+    
+    if (bounds.sw.longitude > 0 && bounds.ne.longitude < 0) {
+        CLLocationDegrees longitude = (180 + (180 - fabs(bounds.sw.longitude))) * -1;
+        bounds.sw = CLLocationCoordinate2DMake(bounds.sw.latitude, longitude);
+        
+    }
+    
     mbgl::CameraOptions cameraOptions = _mbglMap->cameraForLatLngBounds(MGLLatLngBoundsFromCoordinateBounds(bounds), padding);
     mbgl::AnimationOptions animationOptions;
     if (animated) {
