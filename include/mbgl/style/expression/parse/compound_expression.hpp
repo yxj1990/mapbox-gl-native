@@ -21,15 +21,15 @@ struct ParseCompoundExpression {
         const auto& name = toString(arrayMember(value, 0));
         assert(name);
         
-        auto it = CompoundExpressions::definitions.find(*name);
-        if (it == CompoundExpressions::definitions.end()) {
+        auto it = CompoundExpressionRegistry::definitions.find(*name);
+        if (it == CompoundExpressionRegistry::definitions.end()) {
             ctx.error(
                  R"(Unknown expression ")" + *name + R"(". If you wanted a literal array, use ["literal", [...]].)",
                 0
             );
             return ParseResult();
         }
-        const CompoundExpressions::Definition& definition = it->second;
+        const CompoundExpressionRegistry::Definition& definition = it->second;
 
         // parse subexpressions first
         std::vector<std::unique_ptr<Expression>> args;
@@ -41,7 +41,7 @@ struct ParseCompoundExpression {
             }
             args.push_back(std::move(*parsed));
         }
-        return CompoundExpressions::create(*name, definition, std::move(args), ctx);
+        return CompoundExpressionRegistry::create(*name, definition, std::move(args), ctx);
     }
 };
 

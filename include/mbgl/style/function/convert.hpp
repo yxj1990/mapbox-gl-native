@@ -31,8 +31,9 @@ namespace detail {
 class ErrorExpression : public Expression {
 public:
     ErrorExpression(std::string message_) : Expression(type::Error), message(std::move(message_)) {}
-    bool isFeatureConstant() const override { return true; }
-    bool isZoomConstant() const override { return true; }
+    void accept(std::function<void(const Expression*)> visit) const override {
+        visit(this);
+    }
 
     EvaluationResult evaluate(const EvaluationParameters&) const override {
         return EvaluationError{message};
@@ -58,16 +59,16 @@ struct Convert {
     static std::unique_ptr<Expression> makeGet(const std::string& type, const std::string& property, ParsingContext ctx) {
         std::vector<std::unique_ptr<Expression>> getArgs;
         getArgs.push_back(makeLiteral(property));
-        ParseResult get = CompoundExpressions::create("get", std::move(getArgs), ctx);
+        ParseResult get = CompoundExpressionRegistry::create("get", std::move(getArgs), ctx);
 
         std::vector<std::unique_ptr<Expression>> assertionArgs;
         assertionArgs.push_back(std::move(*get));
         
-        return std::move(*(CompoundExpressions::create(type, std::move(assertionArgs), ctx)));
+        return std::move(*(CompoundExpressionRegistry::create(type, std::move(assertionArgs), ctx)));
     }
     
     static std::unique_ptr<Expression> makeZoom(ParsingContext ctx) {
-        return std::move(*(CompoundExpressions::create("zoom", std::vector<std::unique_ptr<Expression>>(), ctx)));
+        return std::move(*(CompoundExpressionRegistry::create("zoom", std::vector<std::unique_ptr<Expression>>(), ctx)));
     }
     
     static std::unique_ptr<Expression> makeError(std::string message) {
@@ -132,11 +133,11 @@ struct Convert {
     static ParseResult makeMatch(std::unique_ptr<Expression> input,
                                  const std::map<CategoricalValue, T>& stops) {
         // match expression
-        typename Match<Key>::Cases cases;
+        typename Match<Key>::Branches branches;
         for(const std::pair<CategoricalValue, T>& stop : stops) {
             assert(stop.first.template is<Key>());
             Key key = stop.first.template get<Key>();
-            cases.emplace(
+            branches.emplace(
                 std::move(key),
                 makeLiteral(stop.second)
             );
@@ -144,7 +145,7 @@ struct Convert {
         
         return ParseResult(std::make_unique<Match<Key>>(valueTypeToExpressionType<T>(),
                                             std::move(input),
-                                            std::move(cases),
+                                            std::move(branches),
                                             makeError("No matching label")));
     }
     
@@ -152,7 +153,7 @@ struct Convert {
     static ParseResult makeCase(std::unique_ptr<Expression> input,
                                 const std::map<CategoricalValue, T>& stops) {
         // case expression
-        std::vector<typename Case::Branch> cases;
+        std::vector<typename Case::Branch> branches;
         
         auto it = stops.find(true);
         std::unique_ptr<Expression> true_case = it == stops.end() ?
@@ -164,8 +165,8 @@ struct Convert {
             makeError("No matching label") :
             makeLiteral(it->second);
 
-        cases.push_back(std::make_pair(std::move(input), std::move(true_case)));
-        return ParseResult(std::make_unique<Case>(valueTypeToExpressionType<T>(), std::move(cases), std::move(false_case)));
+        branches.push_back(std::make_pair(std::move(input), std::move(true_case)));
+        return ParseResult(std::make_unique<Case>(valueTypeToExpressionType<T>(), std::move(branches), std::move(false_case)));
     }
     
     template <typename T>
@@ -339,14 +340,14 @@ struct Convert {
             [&] (const type::ColorType&) {
                 std::vector<std::unique_ptr<Expression>> args;
                 args.push_back(makeGet("string", property, ParsingContext(errors)));
-                ParseResult color = CompoundExpressions::create("parse_color", std::move(args), ParsingContext(errors));
+                ParseResult color = CompoundExpressionRegistry::create("parse_color", std::move(args), ParsingContext(errors));
                 assert(color);
                 return std::move(*color);
             },
             [&] (const type::Array& arr) {
                 std::vector<std::unique_ptr<Expression>> getArgs;
                 getArgs.push_back(makeLiteral(property));
-                ParseResult get = CompoundExpressions::create("get", std::move(getArgs), ParsingContext(errors));
+                ParseResult get = CompoundExpressionRegistry::create("get", std::move(getArgs), ParsingContext(errors));
                 return std::make_unique<ArrayAssertion>(arr, std::move(*get));
             },
             [&] (const auto&) -> std::unique_ptr<Expression> {

@@ -1,4 +1,5 @@
 #include <mbgl/style/expression/expression.hpp>
+#include <mbgl/style/expression/compound_expression.hpp>
 #include <mbgl/tile/geometry_tile_data.hpp>
 
 namespace mbgl {
@@ -26,6 +27,37 @@ public:
     }
 };
 
+bool Expression::isFeatureConstant() const {
+    bool featureConstant = true;
+    accept([&](const Expression* expression) {
+        if (auto e = dynamic_cast<const CompoundExpressionBase*>(expression)) {
+            const std::string name = e->getName();
+            if (name == "get" || name == "has") {
+                optional<std::size_t> parameterCount = e->getParameterCount();
+                featureConstant = featureConstant && (parameterCount && *parameterCount > 1);
+            } else {
+                featureConstant = featureConstant && !(
+                    name == "properties" ||
+                    name == "geometry_type" ||
+                    name == "id"
+                );
+            }
+        }
+    });
+    return featureConstant;
+}
+
+bool Expression::isZoomConstant() const {
+    bool zoomConstant = true;
+    accept([&](const Expression* expression) {
+        if (auto e = dynamic_cast<const CompoundExpressionBase*>(expression)) {
+            if (e->getName() == "zoom") {
+                zoomConstant = false;
+            }
+        }
+    });
+    return zoomConstant;
+}
 
 EvaluationResult Expression::evaluate(float z, const Feature& feature) const {
     GeoJSONFeature f(feature);

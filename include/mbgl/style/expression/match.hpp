@@ -14,42 +14,26 @@ using InputType = variant<int64_t, std::string>;
 template <typename T>
 class Match : public Expression {
 public:
-    using Cases = std::unordered_map<T, std::shared_ptr<Expression>>;
+    using Branches = std::unordered_map<T, std::shared_ptr<Expression>>;
 
     Match(type::Type type_,
           std::unique_ptr<Expression> input_,
-          Cases cases_,
+          Branches branches_,
           std::unique_ptr<Expression> otherwise_
     ) : Expression(type_),
         input(std::move(input_)),
-        cases(std::move(cases_)),
+        branches(std::move(branches_)),
         otherwise(std::move(otherwise_))
     {}
     
-    bool isFeatureConstant() const override {
-        if (!input->isFeatureConstant()) { return false; }
-        if (!otherwise->isFeatureConstant()) { return false; }
-        for (const auto& pair : cases) {
-            if (!pair.second->isFeatureConstant()) { return false; }
-        }
-        return true;
-    }
+    void accept(std::function<void(const Expression*)> visit) const override;
 
-    bool isZoomConstant() const override {
-        if (!input->isZoomConstant()) { return false; }
-        if (!otherwise->isZoomConstant()) { return false; }
-        for (const auto& pair : cases) {
-            if (!pair.second->isZoomConstant()) { return false; }
-        }
-        return true;
-    }
-    
     EvaluationResult evaluate(const EvaluationParameters& params) const override;
     
 private:
     
     std::unique_ptr<Expression> input;
-    Cases cases;
+    Branches branches;
     std::unique_ptr<Expression> otherwise;
 };
 

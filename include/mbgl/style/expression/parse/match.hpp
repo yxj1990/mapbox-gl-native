@@ -34,7 +34,7 @@ struct ParseMatch {
         optional<type::Type> inputType;
         optional<type::Type> outputType = ctx.expected;
         std::vector<std::pair<std::vector<InputType>,
-                              std::unique_ptr<Expression>>> cases;
+                              std::unique_ptr<Expression>>> branches;
         
         for (size_t i = 2; i + 1 < length; i += 2) {
             const auto& label = arrayMember(value, i);
@@ -74,7 +74,7 @@ struct ParseMatch {
                 outputType = (*output)->getType();
             }
             
-            cases.push_back(std::make_pair(std::move(labels), std::move(*output)));
+            branches.push_back(std::make_pair(std::move(labels), std::move(*output)));
         }
         
         auto input = parseExpression(arrayMember(value, 1), ParsingContext(ctx, 1, inputType));
@@ -91,10 +91,10 @@ struct ParseMatch {
         
         return inputType->match(
             [&](const type::NumberType&) {
-                return create<int64_t>(*outputType, std::move(*input), std::move(cases), std::move(*otherwise), ctx);
+                return create<int64_t>(*outputType, std::move(*input), std::move(branches), std::move(*otherwise), ctx);
             },
             [&](const type::StringType&) {
-                return create<std::string>(*outputType, std::move(*input), std::move(cases), std::move(*otherwise), ctx);
+                return create<std::string>(*outputType, std::move(*input), std::move(branches), std::move(*otherwise), ctx);
             },
             [&](const auto&) {
                 assert(false);
@@ -169,22 +169,22 @@ private:
     static ParseResult create(type::Type outputType,
                               std::unique_ptr<Expression>input,
                               std::vector<std::pair<std::vector<InputType>,
-                                                    std::unique_ptr<Expression>>> cases,
+                                                    std::unique_ptr<Expression>>> branches,
                               std::unique_ptr<Expression> otherwise,
                               ParsingContext ctx) {
-        typename Match<T>::Cases typedCases;
+        typename Match<T>::Branches typedBranches;
         
         std::size_t index = 2;
         for (std::pair<std::vector<InputType>,
-                       std::unique_ptr<Expression>>& pair : cases) {
+                       std::unique_ptr<Expression>>& pair : branches) {
             std::shared_ptr<Expression> result = std::move(pair.second);
             for (const InputType& label : pair.first) {
                 const auto& typedLabel = label.template get<T>();
-                if (typedCases.find(typedLabel) != typedCases.end()) {
+                if (typedBranches.find(typedLabel) != typedBranches.end()) {
                     ctx.error("Branch labels must be unique.", index);
                     return ParseResult();
                 }
-                typedCases.emplace(typedLabel, result);
+                typedBranches.emplace(typedLabel, result);
             }
             
             index += 2;
@@ -192,7 +192,7 @@ private:
         return ParseResult(std::make_unique<Match<T>>(
             outputType,
             std::move(input),
-            std::move(typedCases),
+            std::move(typedBranches),
             std::move(otherwise)
         ));
     }

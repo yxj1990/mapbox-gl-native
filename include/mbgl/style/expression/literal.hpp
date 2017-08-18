@@ -23,29 +23,9 @@ public:
     EvaluationResult evaluate(const EvaluationParameters&) const override {
         return value;
     }
-    bool isFeatureConstant() const override { return true; }
-    bool isZoomConstant() const override { return true; }
-    
-    template <class V>
-    static ParseResult parse(const V& value, ParsingContext ctx) {
-        const Value& parsedValue = parseValue(value);
-        
-        // special case: infer the item type if possible for zero-length arrays
-        if (
-            ctx.expected &&
-            ctx.expected->template is<type::Array>() &&
-            parsedValue.template is<std::vector<Value>>()
-        ) {
-            auto type = typeOf(parsedValue).template get<type::Array>();
-            auto expected = ctx.expected->template get<type::Array>();
-            if (
-                type.N && (*type.N == 0) &&
-                (!expected.N || (*expected.N == 0))
-            ) {
-                return ParseResult(std::make_unique<Literal>(expected, parsedValue.template get<std::vector<Value>>()));
-            }
-        }
-        return ParseResult(std::make_unique<Literal>(parsedValue));
+
+    void accept(std::function<void(const Expression*)> visit) const override {
+        visit(this);
     }
     
 private:

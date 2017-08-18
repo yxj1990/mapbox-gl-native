@@ -85,10 +85,9 @@ public:
     Expression(type::Type type_) : type(std::move(type_)) {}
     virtual ~Expression() = default;
     
-    virtual bool isFeatureConstant() const = 0;
-    virtual bool isZoomConstant() const = 0;
-    
     virtual EvaluationResult evaluate(const EvaluationParameters& params) const = 0;
+    
+    virtual void accept(std::function<void(const Expression*)>) const = 0;
     
     /*
       Evaluate this expression to a particular type T. 
@@ -108,9 +107,10 @@ public:
             };
         }
     }
-    
+
+    bool isFeatureConstant() const;
+    bool isZoomConstant() const;
     EvaluationResult evaluate(float z, const Feature& feature) const;
-    
     type::Type getType() const { return type; };
     
 private:

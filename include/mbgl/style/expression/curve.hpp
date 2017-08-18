@@ -107,20 +107,13 @@ public:
         
     }
     
-    bool isFeatureConstant() const override {
-        if (!input->isFeatureConstant()) { return false; }
-        for (const auto& stop : stops) {
-            if (!stop.second->isFeatureConstant()) { return false; }
+    void accept(std::function<void(const Expression*)> visit) const override {
+        visit(this);
+        input->accept(visit);
+        
+        for (auto it = stops.begin(); it != stops.end(); it++) {
+            it->second->accept(visit);
         }
-        return true;
-    }
-
-    bool isZoomConstant() const override {
-        if (!input->isZoomConstant()) { return false; }
-        for (const auto& stop : stops) {
-            if (!stop.second->isZoomConstant()) { return false; }
-        }
-        return true;
     }
     
     bool isZoomCurve() const {

@@ -18,65 +18,16 @@ public:
         args(std::move(args_))
     {}
     
-    EvaluationResult evaluate(const EvaluationParameters& params) const override {
-        for (auto it = args.begin(); it != args.end(); it++) {
-            const auto& result = (*it)->evaluate(params);
-            if (!result && (std::next(it) != args.end())) {
-                continue;
-            }
-            return result;
-        }
-        
-        return Null;
-    }
+    EvaluationResult evaluate(const EvaluationParameters& params) const override;
     
-    bool isFeatureConstant() const override {
-        for (const auto& arg : args) {
-            if (!arg->isFeatureConstant()) return false;
-        }
-        return true;
-    }
+    void accept(std::function<void(const Expression*)> visit) const override;
 
-    bool isZoomConstant() const override {
-        for (const auto& arg : args) {
-            if (!arg->isZoomConstant()) return false;
-        }
-        return true;
-    }
-    
     std::size_t getLength() const {
         return args.size();
     }
     
     Expression* getChild(std::size_t i) const {
         return args.at(i).get();
-    }
-    
-    template <typename V>
-    static ParseResult parse(const V& value, ParsingContext ctx) {
-        using namespace mbgl::style::conversion;
-        assert(isArray(value));
-        auto length = arrayLength(value);
-        if (length < 2) {
-            ctx.error("Expected at least one argument.");
-            return ParseResult();
-        }
-        
-        Args args;
-        optional<type::Type> outputType = ctx.expected;
-        for (std::size_t i = 1; i < length; i++) {
-            auto parsed = parseExpression(arrayMember(value, i), ParsingContext(ctx, i, outputType));
-            if (!parsed) {
-                return parsed;
-            }
-            if (!outputType) {
-                outputType = (*parsed)->getType();
-            }
-            args.push_back(std::move(*parsed));
-        }
-        
-        assert(outputType);
-        return ParseResult(std::make_unique<Coalesce>(*outputType, std::move(args)));
     }
     
 private:

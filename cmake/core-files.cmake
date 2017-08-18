@@ -410,8 +410,12 @@ set(MBGL_CORE_FILES
     include/mbgl/style/expression/parsing_context.hpp
     include/mbgl/style/expression/type.hpp
     include/mbgl/style/expression/value.hpp
+    src/mbgl/style/expression/array_assertion.cpp
+    src/mbgl/style/expression/case.cpp
     src/mbgl/style/expression/check_subtype.cpp
+    src/mbgl/style/expression/coalesce.cpp
     src/mbgl/style/expression/compound_expression.cpp
+    src/mbgl/style/expression/let.cpp
     src/mbgl/style/expression/match.cpp
     src/mbgl/style/expression/value.cpp
 

@@ -5,39 +5,234 @@ namespace mbgl {
 namespace style {
 namespace expression {
 
-namespace detail {
-    template <> Value get<Value const&>(const Value& value) {
-        return value;
+
+template <typename T>
+std::decay_t<T> get(const Value& value);
+
+template <> Value get<Value const&>(const Value& value) {
+    return value;
+}
+template <typename T> std::decay_t<T> get(const Value& value) {
+    return value.get<std::decay_t<T>>();
+}
+
+
+template <class, class Enable = void>
+struct Signature;
+
+// Signature from a zoom- or property-dependent evaluation function:
+// (const EvaluationParameters&, T1, T2, ...) => Result<U>,
+// where T1, T2, etc. are the types of successfully-evaluated subexpressions.
+template <class R, class... Params>
+struct Signature<R (const EvaluationParameters&, Params...)> : SignatureBase {
+    using Args = std::array<std::unique_ptr<Expression>, sizeof...(Params)>;
+    
+    Signature(R (*evaluate_)(const EvaluationParameters&, Params...)) :
+        SignatureBase(
+            valueTypeToExpressionType<std::decay_t<typename R::Value>>(),
+            std::vector<type::Type> {valueTypeToExpressionType<std::decay_t<Params>>()...}
+        ),
+        evaluate(evaluate_)
+    {}
+    
+    std::unique_ptr<Expression> makeExpression(const std::string& name,
+                                               std::vector<std::unique_ptr<Expression>> args) const override {
+        typename Signature::Args argsArray;
+        std::copy_n(std::make_move_iterator(args.begin()), sizeof...(Params), argsArray.begin());
+        return std::make_unique<CompoundExpression<Signature>>(name, *this, std::move(argsArray));
     }
-    template <typename T> std::decay_t<T> get(const Value& value) {
-        return value.get<std::decay_t<T>>();
+    
+    EvaluationResult apply(const EvaluationParameters& evaluationParameters, const Args& args) const {
+        return applyImpl(evaluationParameters, args, std::index_sequence_for<Params...>{});
     }
-} // namespace detail
+    
+private:
+    template <std::size_t ...I>
+    EvaluationResult applyImpl(const EvaluationParameters& evaluationParameters, const Args& args, std::index_sequence<I...>) const {
+        const std::vector<EvaluationResult>& evaluated = {std::get<I>(args)->evaluate(evaluationParameters)...};
+        for (const auto& arg : evaluated) {
+            if(!arg) return arg.error();
+        }
+        // TODO: assert correct runtime type of each arg value
+        const R& value = evaluate(evaluationParameters, get<Params>(*(evaluated.at(I)))...);
+        if (!value) return value.error();
+        return *value;
+    }
+    
+    R (*evaluate)(const EvaluationParameters&, Params...);
+};
+
+// Signature from varargs evaluation function: (Varargs<T>) => Result<U>,
+// where T is the type of each successfully-evaluated subexpression (Varargs<T> being
+// an alias for vector<T>).
+template <class R, typename T>
+struct Signature<R (const Varargs<T>&)> : SignatureBase {
+    using Args = std::vector<std::unique_ptr<Expression>>;
+    
+    Signature(R (*evaluate_)(const Varargs<T>&)) :
+        SignatureBase(
+            valueTypeToExpressionType<std::decay_t<typename R::Value>>(),
+            VarargsType { valueTypeToExpressionType<T>() }
+        ),
+        evaluate(evaluate_)
+    {}
+    
+    std::unique_ptr<Expression> makeExpression(const std::string& name,
+                                               std::vector<std::unique_ptr<Expression>> args) const override  {
+        return std::make_unique<CompoundExpression<Signature>>(name, *this, std::move(args));
+    };
+    
+    EvaluationResult apply(const EvaluationParameters& evaluationParameters, const Args& args) const {
+        Varargs<T> evaluated;
+        for (const auto& arg : args) {
+            const auto& evaluatedArg = arg->evaluate<T>(evaluationParameters);
+            if(!evaluatedArg) return evaluatedArg.error();
+            evaluated.push_back(*evaluatedArg);
+        }
+        const R& value = evaluate(evaluated);
+        if (!value) return value.error();
+        return *value;
+    }
+    
+    R (*evaluate)(const Varargs<T>&);
+};
+
+// Signature from "pure" evaluation function: (T1, T2, ...) => Result<U>,
+// where T1, T2, etc. are the types of successfully-evaluated subexpressions.
+template <class R, class... Params>
+struct Signature<R (Params...)> : SignatureBase {
+    using Args = std::array<std::unique_ptr<Expression>, sizeof...(Params)>;
+    
+    Signature(R (*evaluate_)(Params...)) :
+        SignatureBase(
+            valueTypeToExpressionType<std::decay_t<typename R::Value>>(),
+            std::vector<type::Type> {valueTypeToExpressionType<std::decay_t<Params>>()...}
+        ),
+        evaluate(evaluate_)
+    {}
+    
+    EvaluationResult apply(const EvaluationParameters& evaluationParameters, const Args& args) const {
+        return applyImpl(evaluationParameters, args, std::index_sequence_for<Params...>{});
+    }
+    
+    std::unique_ptr<Expression> makeExpression(const std::string& name,
+                                               std::vector<std::unique_ptr<Expression>> args) const override {
+        typename Signature::Args argsArray;
+        std::copy_n(std::make_move_iterator(args.begin()), sizeof...(Params), argsArray.begin());
+        return std::make_unique<CompoundExpression<Signature>>(name, *this, std::move(argsArray));
+    }
+
+    R (*evaluate)(Params...);
+private:
+    template <std::size_t ...I>
+    EvaluationResult applyImpl(const EvaluationParameters& evaluationParameters, const Args& args, std::index_sequence<I...>) const {
+        const std::vector<EvaluationResult>& evaluated = {std::get<I>(args)->evaluate(evaluationParameters)...};
+        for (const auto& arg : evaluated) {
+            if(!arg) return arg.error();
+        }
+        // TODO: assert correct runtime type of each arg value
+        const R& value = evaluate(get<Params>(*(evaluated.at(I)))...);
+        if (!value) return value.error();
+        return *value;
+    }
+};
 
 template <class R, class... Params>
-std::unique_ptr<Expression> Signature<R (const EvaluationParameters&, Params...)>
-::makeExpression(const std::string& name, std::vector<std::unique_ptr<Expression>> args) const
+struct Signature<R (*)(Params...)>
+    : Signature<R (Params...)>
+{ using Signature<R (Params...)>::Signature; };
+
+template <class T, class R, class... Params>
+struct Signature<R (T::*)(Params...) const>
+    : Signature<R (Params...)>
+{ using Signature<R (Params...)>::Signature;  };
+
+template <class T, class R, class... Params>
+struct Signature<R (T::*)(Params...)>
+    : Signature<R (Params...)>
+{ using Signature<R (Params...)>::Signature; };
+
+template <class Lambda>
+struct Signature<Lambda, std::enable_if_t<std::is_class<Lambda>::value>>
+    : Signature<decltype(&Lambda::operator())>
+{ using Signature<decltype(&Lambda::operator())>::Signature; };
+
+
+ParseResult CompoundExpressionRegistry::create(const std::string& name,
+                              const Definition& definition,
+                              std::vector<std::unique_ptr<Expression>> args,
+                              ParsingContext ctx)
 {
-    typename Signature::Args argsArray;
-    std::copy_n(std::make_move_iterator(args.begin()), sizeof...(Params), argsArray.begin());
-    return std::make_unique<CompoundExpression<Signature>>(name, *this, std::move(argsArray));
-};
+    std::vector<ParsingError> currentSignatureErrors;
 
-template <typename R, typename T>
-std::unique_ptr<Expression> Signature<R (const Varargs<T>&)>
-::makeExpression(const std::string& name, std::vector<std::unique_ptr<Expression>> args) const {
-    return std::make_unique<CompoundExpression<Signature>>(name, *this, std::move(args));
-};
+    ParsingContext signatureContext(currentSignatureErrors);
+    signatureContext.key = ctx.key;
+    
+    for (const auto& signature : definition) {
+        currentSignatureErrors.clear();
+        
+        
+        if (signature->params.is<std::vector<type::Type>>()) {
+            const auto& params = signature->params.get<std::vector<type::Type>>();
+            if (params.size() != args.size()) {
+                signatureContext.error(
+                    "Expected " + std::to_string(params.size()) +
+                    " arguments, but found " + std::to_string(args.size()) + " instead."
+                );
+                continue;
+            }
 
-template <class R, class... Params>
-std::unique_ptr<Expression> Signature<R (Params...)>
-::makeExpression(const std::string& name, std::vector<std::unique_ptr<Expression>> args) const {
-    typename Signature::Args argsArray;
-    std::copy_n(std::make_move_iterator(args.begin()), sizeof...(Params), argsArray.begin());
-    return std::make_unique<CompoundExpression<Signature>>(name, *this, std::move(argsArray));
-};
+            for (std::size_t i = 0; i < args.size(); i++) {
+                const auto& arg = args.at(i);
+                checkSubtype(params.at(i), arg->getType(), ParsingContext(signatureContext, i + 1));
+            }
+        } else if (signature->params.is<VarargsType>()) {
+            const auto& paramType = signature->params.get<VarargsType>().type;
+            for (std::size_t i = 0; i < args.size(); i++) {
+                const auto& arg = args.at(i);
+                checkSubtype(paramType, arg->getType(), ParsingContext(signatureContext, i + 1));
+            }
+        }
+        
+        if (currentSignatureErrors.size() == 0) {
+            return ParseResult(signature->makeExpression(name, std::move(args)));
+        }
+    }
+    
+    if (definition.size() == 1) {
+        ctx.errors.insert(ctx.errors.end(), currentSignatureErrors.begin(), currentSignatureErrors.end());
+    } else {
+        std::string signatures;
+        for (const auto& signature : definition) {
+            signatures += (signatures.size() > 0 ? " | " : "");
+            signature->params.match(
+                [&](const VarargsType& varargs) {
+                    signatures += "(" + toString(varargs.type) + ")";
+                },
+                [&](const std::vector<type::Type>& params) {
+                    signatures += "(";
+                    for (const type::Type& param : params) {
+                        signatures += toString(param);
+                    }
+                    signatures += ")";
+                }
+            );
+            
+        }
+        std::string actualTypes = "(";
+        for (const auto& arg : args) {
+            if (actualTypes.size() > 0) {
+                actualTypes += ", ";
+            }
+            actualTypes += toString(arg->getType());
+        }
+        ctx.error("Expected arguments of type ${signatures}, but found (${actualTypes}) instead.");
+    }
+    
+    return ParseResult();
+}
 
-using Definition = CompoundExpressions::Definition;
+using Definition = CompoundExpressionRegistry::Definition;
 
 // Helper for creating expression Definigion from one or more lambdas
 template <typename ...Evals, typename std::enable_if_t<sizeof...(Evals) != 0, int> = 0>
@@ -51,103 +246,6 @@ static std::pair<std::string, Definition> define(std::string name, Evals... eval
         (void)t0;
     }
     return std::pair<std::string, Definition>(name, std::move(definition));
-}
-
-
-// Helper for defining feature-dependent expression
-template <typename ...Evals, typename std::enable_if_t<sizeof...(Evals) != 0, int> = 0>
-static std::pair<std::string, Definition> defineFeatureFunction(std::string name, Evals... evalFunctions) {
-    Definition definition;
-    expand_pack(definition.push_back(std::make_unique<Signature<Evals>>(evalFunctions, false)));
-    const auto& t0 = definition.at(0)->result;
-    for (const auto& signature : definition) {
-        // TODO replace with real ==
-        assert(t0 == signature->result);
-        (void)signature;
-        (void)t0;
-
-    }
-    return std::pair<std::string, Definition>(name, std::move(definition));
-}
-
-// Special case defineHas() and defineGet() functions because their overloads
-// have differing values for isFeatureConstant.
-static Definition defineHas() {
-    Definition definition;
-    definition.push_back(
-        std::make_unique<Signature<Result<bool> (const EvaluationParameters&, const std::string&)>>(
-            [](const EvaluationParameters& params, const std::string& key) -> Result<bool> {
-                if (!params.feature) {
-                    return EvaluationError {
-                        "Feature data is unavailable in the current evaluation context."
-                    };
-                }
-                
-                return params.feature->getValue(key) ? true : false;
-            },
-            false
-        )
-    );
-    definition.push_back(
-        std::make_unique<Signature<Result<bool> (const std::string&, const std::unordered_map<std::string, Value>&)>>(
-            [](const std::string& key, const std::unordered_map<std::string, Value>& object) -> Result<bool> {
-                return object.find(key) != object.end();
-            }
-        )
-    );
-    return definition;
-}
-
-static Definition defineGet() {
-    Definition definition;
-    definition.push_back(
-        std::make_unique<Signature<Result<Value> (const EvaluationParameters&, const std::string&)>>(
-            [](const EvaluationParameters& params, const std::string& key) -> Result<Value> {
-                if (!params.feature) {
-                    return EvaluationError {
-                        "Feature data is unavailable in the current evaluation context."
-                    };
-                }
-
-                auto propertyValue = params.feature->getValue(key);
-                if (!propertyValue) {
-                    return EvaluationError {
-                        "Property '" + key + "' not found in feature.properties"
-                    };
-                }
-                return Value(toExpressionValue(*propertyValue));
-            },
-            false
-        )
-    );
-    definition.push_back(
-        std::make_unique<Signature<Result<Value> (const std::string&, const std::unordered_map<std::string, Value>&)>>(
-            [](const std::string& key, const std::unordered_map<std::string, Value>& object) -> Result<Value> {
-                if (object.find(key) == object.end()) {
-                    return EvaluationError {
-                        "Property '" + key + "' not found in object"
-                    };
-                }
-                return object.at(key);
-            }
-        )
-    );
-    return definition;
-}
-
-// Define "zoom" expression, it being the only one for which isZoomConstant == false.
-static std::pair<std::string, Definition> defineZoom() {
-    auto zoom = [](const EvaluationParameters& params) -> Result<double> {
-        if (!params.zoom) {
-            return EvaluationError {
-                "The 'zoom' expression is unavailable in the current evaluation context."
-            };
-        }
-        return *(params.zoom);
-    };
-    Definition definition;
-    definition.push_back(std::make_unique<Signature<decltype(zoom)>>(zoom, true, false));
-    return std::pair<std::string, Definition>("zoom", std::move(definition));
 }
 
 template <typename T>
@@ -188,13 +286,13 @@ Result<mbgl::Color> rgba(double r, double g, double b, double a) {
 }
 
 template <typename ...Entries>
-std::unordered_map<std::string, CompoundExpressions::Definition> initializeDefinitions(Entries... entries) {
-    std::unordered_map<std::string, CompoundExpressions::Definition> definitions;
+std::unordered_map<std::string, CompoundExpressionRegistry::Definition> initializeDefinitions(Entries... entries) {
+    std::unordered_map<std::string, CompoundExpressionRegistry::Definition> definitions;
     expand_pack(definitions.insert(std::move(entries)));
     return definitions;
 }
 
-std::unordered_map<std::string, Definition> CompoundExpressions::definitions = initializeDefinitions(
+std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definitions = initializeDefinitions(
     define("e", []() -> Result<double> { return 2.718281828459045f; }),
     define("pi", []() -> Result<double> { return 3.141592653589793f; }),
     define("ln2", []() -> Result<double> { return 0.6931471805599453; }),
@@ -248,10 +346,49 @@ std::unordered_map<std::string, Definition> CompoundExpressions::definitions = i
     define("rgba", rgba),
     define("rgb", [](double r, double g, double b) { return rgba(r, g, b, 1.0f); }),
     
-    defineZoom(),
+    define("zoom", [](const EvaluationParameters& params) -> Result<double> {
+        if (!params.zoom) {
+            return EvaluationError {
+                "The 'zoom' expression is unavailable in the current evaluation context."
+            };
+        }
+        return *(params.zoom);
+    }),
     
-    std::pair<std::string, Definition>("has", defineHas()),
-    std::pair<std::string, Definition>("get", defineGet()),
+    define("has", [](const EvaluationParameters& params, const std::string& key) -> Result<bool> {
+        if (!params.feature) {
+            return EvaluationError {
+                "Feature data is unavailable in the current evaluation context."
+            };
+        }
+        
+        return params.feature->getValue(key) ? true : false;
+    }, [](const std::string& key, const std::unordered_map<std::string, Value>& object) -> Result<bool> {
+        return object.find(key) != object.end();
+    }),
+    
+    define("get", [](const EvaluationParameters& params, const std::string& key) -> Result<Value> {
+        if (!params.feature) {
+            return EvaluationError {
+                "Feature data is unavailable in the current evaluation context."
+            };
+        }
+
+        auto propertyValue = params.feature->getValue(key);
+        if (!propertyValue) {
+            return EvaluationError {
+                "Property '" + key + "' not found in feature.properties"
+            };
+        }
+        return Value(toExpressionValue(*propertyValue));
+    }, [](const std::string& key, const std::unordered_map<std::string, Value>& object) -> Result<Value> {
+        if (object.find(key) == object.end()) {
+            return EvaluationError {
+                "Property '" + key + "' not found in object"
+            };
+        }
+        return object.at(key);
+    }),
     
     define("length", [](const std::vector<Value>& arr) -> Result<double> {
         return arr.size();
@@ -259,7 +396,7 @@ std::unordered_map<std::string, Definition> CompoundExpressions::definitions = i
         return s.size();
     }),
     
-    defineFeatureFunction("properties", [](const EvaluationParameters& params) -> Result<std::unordered_map<std::string, Value>> {
+    define("properties", [](const EvaluationParameters& params) -> Result<std::unordered_map<std::string, Value>> {
         if (!params.feature) {
             return EvaluationError {
                 "Feature data is unavailable in the current evaluation context."
@@ -273,7 +410,7 @@ std::unordered_map<std::string, Definition> CompoundExpressions::definitions = i
         return result;
     }),
     
-    defineFeatureFunction("geometry_type", [](const EvaluationParameters& params) -> Result<std::string> {
+    define("geometry_type", [](const EvaluationParameters& params) -> Result<std::string> {
         if (!params.feature) {
             return EvaluationError {
                 "Feature data is unavailable in the current evaluation context."
@@ -292,7 +429,7 @@ std::unordered_map<std::string, Definition> CompoundExpressions::definitions = i
         }
     }),
     
-    defineFeatureFunction("id", [](const EvaluationParameters& params) -> Result<Value> {
+    define("id", [](const EvaluationParameters& params) -> Result<Value> {
         if (!params.feature) {
             return EvaluationError {
                 "Feature data is unavailable in the current evaluation context."
