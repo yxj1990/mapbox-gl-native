@@ -15,7 +15,7 @@ template<> struct Converter<std::unique_ptr<Expression>> {
     template <class V>
     optional<std::unique_ptr<Expression>> operator()(const V& value, Error& error, type::Type expected) const {
         std::vector<ParsingError> errors;
-        auto parsed = parseExpression(value, ParsingContext(errors, expected));
+        ParseResult parsed = parseExpression(value, ParsingContext(errors, expected));
         if (parsed) {
             return std::move(*parsed);
         }

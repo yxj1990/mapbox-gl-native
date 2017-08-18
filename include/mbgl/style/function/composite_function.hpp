@@ -104,16 +104,13 @@ public:
             == std::tie(rhs.property, rhs.stops, rhs.defaultValue);
     }
 
-    std::string property;
-    Stops stops;
-    optional<T> defaultValue;
-    bool useIntegerZoom = false;
-
-private:
     static optional<Curve*> findZoomCurve(expression::Expression* e) {
         if (auto curve = dynamic_cast<Curve*>(e)) {
-            assert(curve->isZoomCurve());
-            return {curve};
+            if(curve->isZoomCurve()) {
+                return {curve};
+            } else {
+                return optional<Curve*>();
+            }
 //        } else if (auto let = dynamic_cast<expression::Let*>(e)) {
 //            return let->getUnsafeResultExpressionPointer();
         } else if (auto coalesce = dynamic_cast<expression::Coalesce*>(e)) {
@@ -131,6 +128,12 @@ private:
         return optional<Curve*>();
     }
 
+    std::string property;
+    Stops stops;
+    optional<T> defaultValue;
+    bool useIntegerZoom = false;
+    
+private:
     std::shared_ptr<expression::Expression> expression;
     const Interpolator interpolator;
 };

@@ -32,6 +32,11 @@ struct Converter<DataDrivenPropertyValue<T>> {
             } else if ((*expression)->isZoomConstant()) {
                 return DataDrivenPropertyValue<T>(SourceFunction<T>(std::move(*expression)));
             } else {
+                if (!CompositeFunction<T>::findZoomCurve(expression->get())) {
+                    error = { R"("zoom" expression may only be used as input to a top-level "curve" expression.)" };
+                    return {};
+                }
+            
                 return DataDrivenPropertyValue<T>(CompositeFunction<T>(std::move(*expression)));
             }
         } else if (!objectMember(value, "property")) {
