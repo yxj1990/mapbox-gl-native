@@ -211,22 +211,25 @@ ParseResult CompoundExpressionRegistry::create(const std::string& name,
                 },
                 [&](const std::vector<type::Type>& params) {
                     signatures += "(";
+                    bool first = true;
                     for (const type::Type& param : params) {
+                        if (!first) signatures += ", ";
                         signatures += toString(param);
+                        first = false;
                     }
                     signatures += ")";
                 }
             );
             
         }
-        std::string actualTypes = "(";
+        std::string actualTypes;
         for (const auto& arg : args) {
             if (actualTypes.size() > 0) {
                 actualTypes += ", ";
             }
             actualTypes += toString(arg->getType());
         }
-        ctx.error("Expected arguments of type ${signatures}, but found (${actualTypes}) instead.");
+        ctx.error("Expected arguments of type " + signatures + ", but found (" + actualTypes + ") instead.");
     }
     
     return ParseResult();
@@ -285,6 +288,13 @@ Result<mbgl::Color> rgba(double r, double g, double b, double a) {
     return mbgl::Color(r / 255, g / 255, b / 255, a);
 }
 
+template <typename T>
+Result<bool> equal(const T& lhs, const T& rhs) { return lhs == rhs; }
+
+template <typename T>
+Result<bool> notEqual(const T& lhs, const T& rhs) { return lhs != rhs; }
+
+
 template <typename ...Entries>
 std::unordered_map<std::string, CompoundExpressionRegistry::Definition> initializeDefinitions(Entries... entries) {
     std::unordered_map<std::string, CompoundExpressionRegistry::Definition> definitions;
@@ -301,6 +311,7 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
     define("number", assertion<double>),
     define("string", assertion<std::string>),
     define("boolean", assertion<bool>),
+    define("object", assertion<std::unordered_map<std::string, Value>>),
     
     define("to_string", [](const Value& v) -> Result<std::string> { return stringify(v); }),
     define("to_number", [](const Value& v) -> Result<double> {
@@ -465,21 +476,71 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
         return prod;
     }),
     define("/", [](double a, double b) -> Result<double> { return a / b; }),
+    define("%", [](double a, double b) -> Result<double> { return fmod(a, b); }),
+    define("^", [](double a, double b) -> Result<double> { return pow(a, b); }),
+    define("log10", [](double x) -> Result<double> { return log10(x); }),
+    define("ln", [](double x) -> Result<double> { return log(x); }),
+    define("log2", [](double x) -> Result<double> { return log2(x); }),
+    define("sin", [](double x) -> Result<double> { return sin(x); }),
+    define("cos", [](double x) -> Result<double> { return cos(x); }),
+    define("tan", [](double x) -> Result<double> { return tan(x); }),
+    define("asin", [](double x) -> Result<double> { return asin(x); }),
+    define("acos", [](double x) -> Result<double> { return acos(x); }),
+    define("atan", [](double x) -> Result<double> { return atan(x); }),
     
-    define("&&", [](const Varargs<bool>& args) -> Result<bool> {
-        bool result = true;
-        for (auto arg : args) result = result && arg;
+    define("min", [](const Varargs<double>& args) -> Result<double> {
+        double result = std::numeric_limits<double>::infinity();
+        for (double arg : args) {
+            result = fmin(arg, result);
+        }
         return result;
     }),
+    define("max", [](const Varargs<double>& args) -> Result<double> {
+        double result = -std::numeric_limits<double>::infinity();
+        for (double arg : args) {
+            result = fmax(arg, result);
+        }
+        return result;
+    }),
+    
+    define("==", equal<double>, equal<bool>, equal<const std::string&>, equal<NullValue>),
+    define("!=", notEqual<double>, notEqual<bool>, notEqual<const std::string&>, notEqual<NullValue>),
+    define(">", [](double lhs, double rhs) -> Result<bool> { return lhs > rhs; }),
+    define(">=", [](double lhs, double rhs) -> Result<bool> { return lhs >= rhs; }),
+    define("<", [](double lhs, double rhs) -> Result<bool> { return lhs < rhs; }),
+    define("<=", [](double lhs, double rhs) -> Result<bool> { return lhs <= rhs; }),
     
     define("||", [](const Varargs<bool>& args) -> Result<bool> {
         bool result = false;
         for (auto arg : args) result = result || arg;
         return result;
     }),
+    define("&&", [](const Varargs<bool>& args) -> Result<bool> {
+        bool result = true;
+        for (bool arg : args) result = result && arg;
+        return result;
+    }),
+    define("!", [](bool e) -> Result<bool> { return !e; }),
     
-    define("!", [](bool e) -> Result<bool> { return !e; })
-    
+    define("upcase", [](const std::string& input) -> Result<std::string> {
+        std::string s = input;
+        std::transform(s.begin(), s.end(), s.begin(),
+                       [](unsigned char c){ return std::toupper(c); });
+        return s;
+    }),
+    define("downcase", [](const std::string& input) -> Result<std::string> {
+        std::string s = input;
+        std::transform(s.begin(), s.end(), s.begin(),
+                       [](unsigned char c){ return std::tolower(c); });
+        return s;
+    }),
+    define("concat", [](const Varargs<std::string>& args) -> Result<std::string> {
+        std::string s;
+        for (const std::string& arg : args) {
+            s += arg;
+        }
+        return s;
+    })
 );
 
 } // namespace expression
