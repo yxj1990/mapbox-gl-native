@@ -372,6 +372,7 @@ set(MBGL_CORE_FILES
     include/mbgl/style/conversion/function.hpp
     include/mbgl/style/conversion/geojson.hpp
     include/mbgl/style/conversion/geojson_options.hpp
+    include/mbgl/style/conversion/get_json_type.hpp
     include/mbgl/style/conversion/layer.hpp
     include/mbgl/style/conversion/light.hpp
     include/mbgl/style/conversion/position.hpp

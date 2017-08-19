@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include <mbgl/style/conversion.hpp>
+#include <mbgl/style/conversion/get_json_type.hpp>
 #include <mbgl/style/expression/check_subtype.hpp>
 #include <mbgl/style/expression/expression.hpp>
 #include <mbgl/style/expression/parse/array_assertion.hpp>
@@ -9,6 +9,7 @@
 #include <mbgl/style/expression/parse/coalesce.hpp>
 #include <mbgl/style/expression/parse/compound_expression.hpp>
 #include <mbgl/style/expression/parse/curve.hpp>
+#include <mbgl/style/expression/parse/let.hpp>
 #include <mbgl/style/expression/parse/literal.hpp>
 #include <mbgl/style/expression/parse/match.hpp>
 #include <mbgl/style/expression/parsing_context.hpp>
@@ -18,24 +19,6 @@ namespace style {
 namespace expression {
 
 using namespace mbgl::style;
-
-template <class V>
-std::string getJSType(const V& value) {
-    using namespace mbgl::style::conversion;
-    if (isUndefined(value)) {
-        return "undefined";
-    }
-    if (isArray(value) || isObject(value)) {
-        return "object";
-    }
-    optional<mbgl::Value> v = conversion::toValue(value);
-    assert(v);
-    return v->match(
-        [&] (std::string) { return "string"; },
-        [&] (bool) { return "boolean"; },
-        [&] (auto) { return "number"; }
-    );
-}
 
 template <class V>
 ParseResult parseExpression(const V& value, ParsingContext context)
@@ -54,7 +37,7 @@ ParseResult parseExpression(const V& value, ParsingContext context)
         const optional<std::string>& op = toString(arrayMember(value, 0));
         if (!op) {
             context.error(
-                "Expression name must be a string, but found " + getJSType(arrayMember(value, 0)) +
+                "Expression name must be a string, but found " + getJSONType(arrayMember(value, 0)) +
                     R"( instead. If you wanted a literal array, use ["literal", [...]].)",
                 0
             );
@@ -80,6 +63,10 @@ ParseResult parseExpression(const V& value, ParsingContext context)
             parsed = ParseCase::parse(value, context);
         } else if (*op == "array") {
             parsed = ParseArrayAssertion::parse(value, context);
+        } else if (*op == "let") {
+            parsed = ParseLet::parse(value, context);
+        } else if (*op == "var") {
+            parsed = ParseVar::parse(value, context);
         } else {
             parsed = ParseCompoundExpression::parse(value, context);
         }
