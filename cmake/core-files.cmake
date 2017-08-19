@@ -398,6 +398,7 @@ set(MBGL_CORE_FILES
 
     # style/expression
     include/mbgl/style/expression/array_assertion.hpp
+    include/mbgl/style/expression/at.hpp
     include/mbgl/style/expression/case.hpp
     include/mbgl/style/expression/check_subtype.hpp
     include/mbgl/style/expression/coalesce.hpp
@@ -412,6 +413,7 @@ set(MBGL_CORE_FILES
     include/mbgl/style/expression/type.hpp
     include/mbgl/style/expression/value.hpp
     src/mbgl/style/expression/array_assertion.cpp
+    src/mbgl/style/expression/at.cpp
     src/mbgl/style/expression/case.cpp
     src/mbgl/style/expression/check_subtype.cpp
     src/mbgl/style/expression/coalesce.cpp
@@ -422,6 +424,7 @@ set(MBGL_CORE_FILES
 
     # style/expression/parse
     include/mbgl/style/expression/parse/array_assertion.hpp
+    include/mbgl/style/expression/parse/at.hpp
     include/mbgl/style/expression/parse/case.hpp
     include/mbgl/style/expression/parse/coalesce.hpp
     include/mbgl/style/expression/parse/compound_expression.hpp

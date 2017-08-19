@@ -4,6 +4,7 @@
 #include <mbgl/style/conversion/get_json_type.hpp>
 #include <mbgl/style/expression/check_subtype.hpp>
 #include <mbgl/style/expression/expression.hpp>
+#include <mbgl/style/expression/parse/at.hpp>
 #include <mbgl/style/expression/parse/array_assertion.hpp>
 #include <mbgl/style/expression/parse/case.hpp>
 #include <mbgl/style/expression/parse/coalesce.hpp>
@@ -67,6 +68,8 @@ ParseResult parseExpression(const V& value, ParsingContext context)
             parsed = ParseLet::parse(value, context);
         } else if (*op == "var") {
             parsed = ParseVar::parse(value, context);
+        } else if (*op == "at") {
+            parsed = ParseAt::parse(value, context);
         } else {
             parsed = ParseCompoundExpression::parse(value, context);
         }
