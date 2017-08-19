@@ -22,7 +22,7 @@ namespace detail {
 struct Scope {
     Scope(const std::map<std::string, std::shared_ptr<Expression>>& bindings_, std::shared_ptr<Scope> parent_ = nullptr) :
         bindings(bindings_),
-        parent(parent_)
+        parent(std::move(parent_))
     {}
 
     const std::map<std::string, std::shared_ptr<Expression>>& bindings;

@@ -69,8 +69,8 @@ public:
         args(std::move(args_))
     {}
     
-    EvaluationResult evaluate(const EvaluationParameters& params) const override {
-        return signature.apply(params, args);
+    EvaluationResult evaluate(const EvaluationParameters& evaluationParams) const override {
+        return signature.apply(evaluationParams, args);
     }
     
     void accept(std::function<void(const Expression*)> visitor) const override {

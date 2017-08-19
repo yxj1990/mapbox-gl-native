@@ -1,3 +1,4 @@
+#include <string>
 #include <mbgl/style/expression/check_subtype.hpp>
 
 namespace mbgl {

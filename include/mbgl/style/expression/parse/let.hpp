@@ -65,8 +65,8 @@ struct ParseVar {
         
         optional<std::shared_ptr<Expression>> bindingValue = ctx.getBinding(name);
         if (!bindingValue) {
-            ctx.error("Unknown variable \"" + name + "\". Make sure \"" +
-                name + "\" has been bound in an enclosing \"let\" expression before using it.", 1);
+            ctx.error(R"(Unknown variable ")" + name +  R"(". Make sure ")" +
+                name + R"(" has been bound in an enclosing "let" expression before using it.)", 1);
             return ParseResult();
         }
         
