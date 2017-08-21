@@ -11,15 +11,12 @@ namespace mbgl {
 namespace style {
 namespace expression {
 
-namespace detail {
-
-// used for storing intermediate state during parsing
-struct ExponentialInterpolation { float base; std::string name; };
-struct StepInterpolation {};
-
-} // namespace detail
-
 struct ParseCurve {
+
+    using Interpolator = variant<StepInterpolator,
+                                 ExponentialInterpolator,
+                                 CubicBezierInterpolator>;
+
     template <typename V>
     static ParseResult parse(const V& value, ParsingContext ctx) {
         using namespace mbgl::style::conversion;
@@ -42,26 +39,49 @@ struct ParseCurve {
             return ParseResult();
         }
 
-        variant<detail::StepInterpolation,
-                detail::ExponentialInterpolation> interpolation;
+        Interpolator interpolator;
         
         const auto& interpName = toString(arrayMember(interp, 0));
+        ParsingContext interpContext = ParsingContext(ctx, 1);
         if (interpName && *interpName == "step") {
-            interpolation = detail::StepInterpolation{};
+            interpolator = StepInterpolator();
         } else if (interpName && *interpName == "linear") {
-            interpolation = detail::ExponentialInterpolation { 1.0f, "linear" };
+            interpolator = ExponentialInterpolator(1.0);
         } else if (interpName && *interpName == "exponential") {
             optional<double> base;
             if (arrayLength(interp) == 2) {
                 base = toDouble(arrayMember(interp, 1));
             }
             if (!base) {
-                ctx.error("Exponential interpolation requires a numeric base.");
+                interpContext.error("Exponential interpolation requires a numeric base.", 1);
                 return ParseResult();
             }
-            interpolation = detail::ExponentialInterpolation { static_cast<float>(*base), "exponential" };
+            interpolator = ExponentialInterpolator(*base);
+        } else if (interpName && *interpName == "cubic-bezier") {
+            optional<double> x1;
+            optional<double> y1;
+            optional<double> x2;
+            optional<double> y2;
+            if (arrayLength(interp) == 5) {
+                x1 = toDouble(arrayMember(interp, 1));
+                y1 = toDouble(arrayMember(interp, 2));
+                x2 = toDouble(arrayMember(interp, 3));
+                y2 = toDouble(arrayMember(interp, 4));
+            }
+            if (
+                !x1 || !y1 || !x2 || !y2 ||
+                *x1 < 0 || *x1 > 1 ||
+                *y1 < 0 || *y1 > 1 ||
+                *x2 < 0 || *x2 > 1 ||
+                *y2 < 0 || *y2 > 1
+            ) {
+                interpContext.error("Cubic bezier interpolation requires four numeric arguments with values between 0 and 1.");
+                return ParseResult();
+                
+            }
+            interpolator = CubicBezierInterpolator(*x1, *y1, *x2, *y2);
         } else {
-            ctx.error("Unknown interpolation type " + (interpName ? *interpName : ""));
+            interpContext.error("Unknown interpolation type " + (interpName ? *interpName : ""), 0);
             return ParseResult();
         }
         
@@ -70,7 +90,7 @@ struct ParseCurve {
             return input;
         }
         
-        std::map<float, std::unique_ptr<Expression>> stops;
+        std::map<double, std::unique_ptr<Expression>> stops;
         optional<type::Type> outputType = ctx.expected;
         
         double previous = - std::numeric_limits<double>::infinity();
@@ -134,7 +154,7 @@ struct ParseCurve {
         assert(outputType);
         
         if (
-            !interpolation.template is<detail::StepInterpolation>() &&
+            !interpolator.template is<StepInterpolator>() &&
             *outputType != type::Number &&
             *outputType != type::Color &&
             !(
@@ -149,46 +169,46 @@ struct ParseCurve {
             return ParseResult();
         }
         
-        return interpolation.match(
-            [&](const detail::StepInterpolation&) -> ParseResult {
-                return ParseResult(std::make_unique<Curve<StepInterpolator>>(
-                    *outputType,
-                    StepInterpolator(),
-                    std::move(*input),
-                    std::move(stops)
-                ));
+        return outputType->match(
+            [&](const type::NumberType&) -> ParseResult {
+                return interpolator.match([&](const auto& interp) {
+                    return ParseResult(std::make_unique<Curve<double>>(
+                        *outputType, interp, std::move(*input), std::move(stops)
+                    ));
+                });
             },
-            [&](const detail::ExponentialInterpolation& exponentialInterpolation) -> ParseResult {
-                const float base = exponentialInterpolation.base;
-                return outputType->match(
-                    [&](const type::NumberType&) -> ParseResult {
-                        return ParseResult(std::make_unique<Curve<ExponentialInterpolator<float>>>(
-                            *outputType,
-                            ExponentialInterpolator<float>(base),
-                            std::move(*input),
-                            std::move(stops)
+            [&](const type::ColorType&) -> ParseResult {
+                return interpolator.match([&](const auto& interp) {
+                    return ParseResult(std::make_unique<Curve<mbgl::Color>>(
+                        *outputType, interp, std::move(*input), std::move(stops)
+                    ));
+                });
+            },
+            [&](const type::Array& arrayType) -> ParseResult {
+                return interpolator.match(
+                    [&](const StepInterpolator& interp) {
+                        return ParseResult(std::make_unique<Curve<double>>(
+                            *outputType, interp, std::move(*input), std::move(stops)
                         ));
                     },
-                    [&](const type::ColorType&) -> ParseResult {
-                        return ParseResult(std::make_unique<Curve<ExponentialInterpolator<mbgl::Color>>>(
-                            *outputType,
-                            ExponentialInterpolator<mbgl::Color>(base),
-                            std::move(*input),
-                            std::move(stops)
-                        ));
-                    },
-                    [&](const type::Array& arrayType) -> ParseResult {
-                        if (arrayType.itemType == type::Number && arrayType.N) {
-                            return ParseResult(std::make_unique<Curve<ExponentialInterpolator<std::vector<Value>>>>(
-                                *outputType,
-                                ExponentialInterpolator<std::vector<Value>>(base),
-                                std::move(*input),
-                                std::move(stops)
-                            ));
-                        } else {
+                    [&](const auto& interp) {
+                        if (arrayType.itemType != type::Number || !arrayType.N) {
                             assert(false); // interpolability already checked above.
                             return ParseResult();
                         }
+                        return ParseResult(std::make_unique<Curve<std::vector<Value>>>(
+                            *outputType, interp, std::move(*input), std::move(stops)
+                        ));
+                    }
+                );
+            },
+            [&](const auto&) {
+                // Null, Boolean, String, Object, Value output types only support step interpolation
+                return interpolator.match(
+                    [&](const StepInterpolator& interp) {
+                        return ParseResult(std::make_unique<Curve<double>>(
+                            *outputType, interp, std::move(*input), std::move(stops)
+                        ));
                     },
                     [&](const auto&) {
                         assert(false); // interpolability already checked above.

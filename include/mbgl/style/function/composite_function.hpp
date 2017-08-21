@@ -47,16 +47,11 @@ public:
             CompositeIntervalStops<T>,
             CompositeCategoricalStops<T>>>;
 
-    using Interpolator = expression::ExponentialInterpolator<T>;
-    using Curve = expression::Curve<Interpolator>;
+    using Curve = expression::Curve<T>;
 
     CompositeFunction(std::unique_ptr<expression::Expression> expression_)
     :   expression(std::move(expression_)),
-        interpolator([&]() -> Interpolator {
-            optional<Curve*> zoomCurve = findZoomCurve(expression.get());
-            assert(zoomCurve);
-            return (*zoomCurve)->getInterpolator();
-        }())
+        zoomCurve(*findZoomCurve(expression.get()))
     {
         assert(!expression->isZoomConstant());
         assert(!expression->isFeatureConstant());
@@ -69,11 +64,7 @@ public:
         expression(stops.match([&] (const auto& s) {
             return expression::Convert::toExpression(property, s, defaultValue);
         })),
-        interpolator([&]() -> Interpolator {
-            optional<Curve*> zoomCurve = findZoomCurve(expression.get());
-            assert(zoomCurve);
-            return (*zoomCurve)->getInterpolator();
-        }())
+        zoomCurve(*findZoomCurve(expression.get()))
     {}
 
     // Return the range obtained by evaluating the function at each of the zoom levels in zoomRange
@@ -94,8 +85,8 @@ public:
         return *result;
     }
     
-    Interpolator getInterpolator() const {
-        return interpolator;
+    float interpolationFactor(const Range<float>& inputLevels, const float& inputValue) const {
+        return zoomCurve->interpolationFactor(Range<double> { inputLevels.min, inputLevels.max }, inputValue);
     }
 
     friend bool operator==(const CompositeFunction& lhs,
@@ -135,7 +126,7 @@ public:
     
 private:
     std::shared_ptr<expression::Expression> expression;
-    const Interpolator interpolator;
+    const Curve* zoomCurve;
 };
 
 } // namespace style

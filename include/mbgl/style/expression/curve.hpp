@@ -3,6 +3,7 @@
 #include <map>
 #include <mbgl/util/interpolate.hpp>
 #include <mbgl/util/range.hpp>
+#include <mbgl/util/unitbezier.hpp>
 #include <mbgl/style/expression/expression.hpp>
 #include <mbgl/style/expression/compound_expression.hpp>
 
@@ -10,61 +11,55 @@ namespace mbgl {
 namespace style {
 namespace expression {
 
-template <class T>
-class ExponentialInterpolator {
-public:
-    ExponentialInterpolator(float base_) : base(base_) {}
-
-    float base;
-    
-    float interpolationFactor(const Range<float>& inputLevels, const float& input) const {
-        return util::interpolationFactor(base, inputLevels, input);
-    }
-    
-    EvaluationResult interpolate(const Range<Value>& outputs, const float& t) const {
-        optional<T> lower = fromExpressionValue<T>(outputs.min);
-        if (!lower) {
-            // TODO - refactor fromExpressionValue to return EvaluationResult<T> so as to
-            // consolidate DRY up producing this error message.
-            return EvaluationError {
-                "Expected value to be of type " + toString(valueTypeToExpressionType<T>()) +
-                ", but found " + toString(typeOf(outputs.min)) + " instead."
-            };
-        }
-        const auto& upper = fromExpressionValue<T>(outputs.max);
-        if (!upper) {
-            return EvaluationError {
-                "Expected value to be of type " + toString(valueTypeToExpressionType<T>()) +
-                ", but found " + toString(typeOf(outputs.min)) + " instead."
-            };
-        }
-        T result = util::interpolate(*lower, *upper, t);
-        return toExpressionValue(result);
-    }
-};
-
 class StepInterpolator {
 public:
-    float interpolationFactor(const Range<float>&, const float&) const {
+    double interpolationFactor(const Range<double>&, const double&) const {
         return 0;
     }
-    EvaluationResult interpolate(const Range<Value>&, const float&) const {
-        // Assume that Curve::evaluate() will always short circuit due to
-        // interpolationFactor always returning 0.
-        assert(false);
-        return Null;
+    
+};
+
+class ExponentialInterpolator {
+public:
+    ExponentialInterpolator(double base_) : base(base_) {}
+
+    double base;
+    
+    double interpolationFactor(const Range<double>& inputLevels, const double& input) const {
+        return util::interpolationFactor(base,
+                                         Range<float> {
+                                            static_cast<float>(inputLevels.min),
+                                            static_cast<float>(inputLevels.max)
+                                         },
+                                         input);
     }
 };
 
-template <typename InterpolatorT>
+class CubicBezierInterpolator {
+public:
+    CubicBezierInterpolator(double x1_, double y1_, double x2_, double y2_) : ub(x1_, y1_, x2_, y2_) {}
+    
+    double interpolationFactor(const Range<double>& inputLevels, const double& input) const {
+        return ub.solve(input / (inputLevels.max - inputLevels.min), 1e-6);
+    }
+    
+    util::UnitBezier ub;
+};
+
+template <typename T>
 class Curve : public Expression {
 public:
-    using Interpolator = InterpolatorT;
+    using Interpolator = std::conditional_t<
+        util::Interpolatable<T>::value,
+        variant<StepInterpolator,
+                ExponentialInterpolator,
+                CubicBezierInterpolator>,
+        variant<StepInterpolator>>;
     
     Curve(const type::Type& type_,
           Interpolator interpolator_,
           std::unique_ptr<Expression> input_,
-          std::map<float, std::unique_ptr<Expression>> stops_
+          std::map<double, std::unique_ptr<Expression>> stops_
     ) : Expression(type_),
         interpolator(std::move(interpolator_)),
         input(std::move(input_)),
@@ -85,7 +80,8 @@ public:
         } else if (it == stops.begin()) {
             return stops.begin()->second->evaluate(params);
         } else {
-            float t = interpolator.interpolationFactor({ std::prev(it)->first, it->first }, *x);
+            float t = interpolationFactor({ std::prev(it)->first, it->first }, *x);
+            
             if (t == 0.0f) {
                 return std::prev(it)->second->evaluate(params);
             }
@@ -102,7 +98,7 @@ public:
                 return upper.error();
             }
 
-            return interpolator.interpolate({*lower, *upper}, t);
+            return interpolate({*lower, *upper}, t);
         }
         
     }
@@ -123,14 +119,49 @@ public:
         return false;
     }
     
-    Interpolator getInterpolator() const {
-        return interpolator;
+    double interpolationFactor(const Range<double>& inputLevels, const double& inputValue) const {
+        return interpolator.match(
+            [&](const auto& interp) { return interp.interpolationFactor(inputLevels, inputValue); }
+        );
     }
     
 private:
+    template <typename OutputType = T>
+    static EvaluationResult interpolate(const Range<Value>&, const double&,
+                                        typename std::enable_if<!util::Interpolatable<OutputType>::value>::type* = 0) {
+        // Assume that Curve::evaluate() will always short circuit due to
+        // interpolationFactor always returning 0.
+        assert(false);
+        return Null;
+    }
+    
+    template <typename OutputType = T>
+    static EvaluationResult interpolate(const Range<Value>& outputs, const double& t,
+                                        typename std::enable_if<util::Interpolatable<OutputType>::value>::type* = 0) {
+        optional<T> lower = fromExpressionValue<T>(outputs.min);
+        if (!lower) {
+            // TODO - refactor fromExpressionValue to return EvaluationResult<T> so as to
+            // consolidate DRY up producing this error message.
+            return EvaluationError {
+                "Expected value to be of type " + toString(valueTypeToExpressionType<T>()) +
+                ", but found " + toString(typeOf(outputs.min)) + " instead."
+            };
+        }
+        const auto& upper = fromExpressionValue<T>(outputs.max);
+        if (!upper) {
+            return EvaluationError {
+                "Expected value to be of type " + toString(valueTypeToExpressionType<T>()) +
+                ", but found " + toString(typeOf(outputs.min)) + " instead."
+            };
+        }
+        T result = util::interpolate(*lower, *upper, t);
+        return toExpressionValue(result);
+    }
+    
+
     Interpolator interpolator;
     std::unique_ptr<Expression> input;
-    std::map<float, std::unique_ptr<Expression>> stops;
+    std::map<double, std::unique_ptr<Expression>> stops;
 };
 
 } // namespace expression

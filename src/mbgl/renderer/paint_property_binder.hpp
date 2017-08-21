@@ -219,9 +219,9 @@ public:
 
     float interpolationFactor(float currentZoom) const override {
         if (function.useIntegerZoom) {
-            return function.getInterpolator().interpolationFactor(zoomRange, std::floor(currentZoom));
+            return function.interpolationFactor(zoomRange, std::floor(currentZoom));
         } else {
-            return function.getInterpolator().interpolationFactor(zoomRange, currentZoom);
+            return function.interpolationFactor(zoomRange, currentZoom);
         }
     }
 

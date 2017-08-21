@@ -89,8 +89,8 @@ struct Convert {
     }
     
     template <typename T>
-    static std::map<float, std::unique_ptr<Expression>> convertStops(const std::map<float, T>& stops) {
-        std::map<float, std::unique_ptr<Expression>> convertedStops;
+    static std::map<double, std::unique_ptr<Expression>> convertStops(const std::map<float, T>& stops) {
+        std::map<double, std::unique_ptr<Expression>> convertedStops;
         for(const std::pair<float, T>& stop : stops) {
             convertedStops.emplace(
                 stop.first,
@@ -101,32 +101,19 @@ struct Convert {
     }
     
     template <typename T>
-    static ParseResult makeExponentialCurve(std::unique_ptr<Expression> input,
-                                                            std::map<float, std::unique_ptr<Expression>> convertedStops,
-                                                            float base,
-                                                            optional<T> defaultValue)
+    static ParseResult makeCurve(std::unique_ptr<Expression> input,
+                                 std::map<double, std::unique_ptr<Expression>> convertedStops,
+                                 typename Curve<T>::Interpolator interpolator,
+                                 optional<T> defaultValue)
     {
-        ParseResult curve = ParseResult(std::make_unique<Curve<ExponentialInterpolator<T>>>(
+        ParseResult curve = ParseResult(std::make_unique<Curve<T>>(
             valueTypeToExpressionType<T>(),
-            ExponentialInterpolator<T>(base),
+            std::move(interpolator),
             std::move(input),
             std::move(convertedStops)
         ));
         assert(curve);
         return makeCoalesceToDefault(std::move(*curve), defaultValue);
-    }
-    
-    template <typename T>
-    static ParseResult makeStepCurve(std::unique_ptr<Expression> input,
-                                     const std::map<float, T>& stops,
-                                     optional<T> defaultValue)
-    {
-        std::map<float, std::unique_ptr<Expression>> convertedStops = convertStops(stops);
-        auto curve = std::make_unique<Curve<StepInterpolator>>(valueTypeToExpressionType<T>(),
-                                                               StepInterpolator(),
-                                                               std::move(input),
-                                                               std::move(convertedStops));
-        return makeCoalesceToDefault(std::move(curve), defaultValue);
     }
     
     template <typename Key, typename T>
@@ -194,10 +181,10 @@ struct Convert {
     static std::unique_ptr<Expression> toExpression(const ExponentialStops<T>& stops)
     {
         std::vector<ParsingError> errors;
-        ParseResult e = makeExponentialCurve(makeZoom(ParsingContext(errors)),
-                                             convertStops(stops.stops),
-                                             stops.base,
-                                             optional<T>());
+        ParseResult e = makeCurve(makeZoom(ParsingContext(errors)),
+                                           convertStops(stops.stops),
+                                           ExponentialInterpolator(stops.base),
+                                           optional<T>());
         assert(e);
         return std::move(*e);
     }
@@ -206,7 +193,7 @@ struct Convert {
     static std::unique_ptr<Expression> toExpression(const IntervalStops<T>& stops)
     {
         std::vector<ParsingError> errors;
-        ParseResult e = makeStepCurve(makeZoom(ParsingContext(errors)), stops.stops, optional<T>());
+        ParseResult e = makeCurve(makeZoom(ParsingContext(errors)), convertStops(stops.stops), StepInterpolator(), optional<T>());
         assert(e);
         return std::move(*e);
     }
@@ -217,10 +204,10 @@ struct Convert {
                                                   optional<T> defaultValue)
     {
         std::vector<ParsingError> errors;
-        ParseResult e = makeExponentialCurve(makeGet("number", property, ParsingContext(errors)),
-                                             convertStops(stops.stops),
-                                             stops.base,
-                                             defaultValue);
+        ParseResult e = makeCurve(makeGet("number", property, ParsingContext(errors)),
+                                          convertStops(stops.stops),
+                                          ExponentialInterpolator(stops.base),
+                                          defaultValue);
         assert(e);
         return std::move(*e);
     }
@@ -231,7 +218,8 @@ struct Convert {
                                                   optional<T> defaultValue)
     {
         std::vector<ParsingError> errors;
-        ParseResult e = makeStepCurve(makeGet("number", property, ParsingContext(errors)), stops.stops, defaultValue);
+        std::unique_ptr<Expression> get = makeGet("number", property, ParsingContext(errors));
+        ParseResult e = makeCurve(std::move(get), convertStops(stops.stops), StepInterpolator(), defaultValue);
         assert(e);
         return std::move(*e);
     }
@@ -249,25 +237,36 @@ struct Convert {
     }
 
     template <typename T>
+    static typename Curve<std::enable_if_t<util::Interpolatable<T>::value, T>>::Interpolator zoomInterpolator() {
+        return ExponentialInterpolator(1.0);
+    }
+    
+    template <typename T>
+    static typename Curve<std::enable_if_t<!util::Interpolatable<T>::value, T>>::Interpolator zoomInterpolator() {
+        return StepInterpolator();
+    }
+
+
+    template <typename T>
     static std::unique_ptr<Expression> toExpression(const std::string& property,
                                                   const CompositeExponentialStops<T>& stops,
                                                   optional<T> defaultValue)
     {
         std::vector<ParsingError> errors;
-        std::map<float, std::unique_ptr<Expression>> outerStops;
+        std::map<double, std::unique_ptr<Expression>> outerStops;
         for (const std::pair<float, std::map<float, T>>& stop : stops.stops) {
             std::unique_ptr<Expression> get = makeGet("number", property, ParsingContext(errors));
-            ParseResult innerCurve = makeExponentialCurve(std::move(get),
-                                                          convertStops(stop.second),
-                                                          stops.base,
-                                                          defaultValue);
+            ParseResult innerCurve = makeCurve(std::move(get),
+                                               convertStops(stop.second),
+                                               ExponentialInterpolator(stops.base),
+                                               defaultValue);
             assert(innerCurve);
             outerStops.emplace(stop.first, std::move(*innerCurve));
         }
-        ParseResult outerCurve = makeExponentialCurve(makeZoom(ParsingContext(errors)),
-                                                      std::move(outerStops),
-                                                      1.0f,
-                                                      defaultValue);
+        ParseResult outerCurve = makeCurve(makeZoom(ParsingContext(errors)),
+                                           std::move(outerStops),
+                                           zoomInterpolator<T>(),
+                                           defaultValue);
         assert(outerCurve);
         ParseResult e = makeCoalesceToDefault(std::move(*outerCurve), defaultValue);
         assert(e);
@@ -280,17 +279,17 @@ struct Convert {
                                                   optional<T> defaultValue)
     {
         std::vector<ParsingError> errors;
-        std::map<float, std::unique_ptr<Expression>> outerStops;
+        std::map<double, std::unique_ptr<Expression>> outerStops;
         for (const std::pair<float, std::map<float, T>>& stop : stops.stops) {
             std::unique_ptr<Expression> get = makeGet("number", property, ParsingContext(errors));
-            ParseResult innerCurve = makeStepCurve(std::move(get), stop.second, defaultValue);
+            ParseResult innerCurve = makeCurve(std::move(get), convertStops(stop.second), StepInterpolator(), defaultValue);
             assert(innerCurve);
             outerStops.emplace(stop.first, std::move(*innerCurve));
         }
-        ParseResult outerCurve = makeExponentialCurve(makeZoom(ParsingContext(errors)),
-                                                      std::move(outerStops),
-                                                      1.0f,
-                                                      defaultValue);
+        ParseResult outerCurve = makeCurve(makeZoom(ParsingContext(errors)),
+                                           std::move(outerStops),
+                                           zoomInterpolator<T>(),
+                                           defaultValue);
         assert(outerCurve);
         ParseResult e = makeCoalesceToDefault(std::move(*outerCurve), defaultValue);
         assert(e);
@@ -303,16 +302,16 @@ struct Convert {
                                                   optional<T> defaultValue)
     {
         std::vector<ParsingError> errors;
-        std::map<float, std::unique_ptr<Expression>> outerStops;
+        std::map<double, std::unique_ptr<Expression>> outerStops;
         for (const std::pair<float, std::map<CategoricalValue, T>>& stop : stops.stops) {
             ParseResult innerCurve = convertCategoricalStops(stop.second, property);
             assert(innerCurve);
             outerStops.emplace(stop.first, std::move(*innerCurve));
         }
-        ParseResult outerCurve = makeExponentialCurve(makeZoom(ParsingContext(errors)),
-                                                      std::move(outerStops),
-                                                      1.0f,
-                                                      defaultValue);
+        ParseResult outerCurve = makeCurve(makeZoom(ParsingContext(errors)),
+                                           std::move(outerStops),
+                                           zoomInterpolator<T>(),
+                                           defaultValue);
         assert(outerCurve);
         ParseResult e = makeCoalesceToDefault(std::move(*outerCurve), defaultValue);
         assert(e);
