@@ -303,8 +303,8 @@ std::unordered_map<std::string, CompoundExpressionRegistry::Definition> initiali
 }
 
 std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definitions = initializeDefinitions(
-    define("e", []() -> Result<double> { return 2.718281828459045f; }),
-    define("pi", []() -> Result<double> { return 3.141592653589793f; }),
+    define("e", []() -> Result<double> { return 2.718281828459045; }),
+    define("pi", []() -> Result<double> { return 3.141592653589793; }),
     define("ln2", []() -> Result<double> { return 0.6931471805599453; }),
 
     define("typeof", [](const Value& v) -> Result<std::string> { return toString(typeOf(v)); }),
@@ -313,7 +313,21 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
     define("boolean", assertion<bool>),
     define("object", assertion<std::unordered_map<std::string, Value>>),
     
-    define("to_string", [](const Value& v) -> Result<std::string> { return stringify(v); }),
+    define("to_string", [](const Value& v) -> Result<std::string> {
+        return v.match(
+            [](const std::unordered_map<std::string, Value>&) -> Result<std::string> {
+                return EvaluationError {
+                    R"(Expected a primitive value in ["string", ...], but found Object instead.)"
+                };
+            },
+            [](const std::vector<Value>& v) -> Result<std::string> {
+                return EvaluationError {
+                    R"(Expected a primitive value in ["string", ...], but found )" + toString(typeOf(v)) + " instead."
+                };
+            },
+            [](const auto& v) -> Result<std::string> { return stringify(v); }
+        );
+    }),
     define("to_number", [](const Value& v) -> Result<double> {
         optional<double> result = v.match(
             [](const double f) -> optional<double> { return f; },
@@ -503,12 +517,20 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
         return result;
     }),
     
-    define("==", equal<double>, equal<bool>, equal<const std::string&>, equal<NullValue>),
-    define("!=", notEqual<double>, notEqual<bool>, notEqual<const std::string&>, notEqual<NullValue>),
-    define(">", [](double lhs, double rhs) -> Result<bool> { return lhs > rhs; }),
-    define(">=", [](double lhs, double rhs) -> Result<bool> { return lhs >= rhs; }),
-    define("<", [](double lhs, double rhs) -> Result<bool> { return lhs < rhs; }),
-    define("<=", [](double lhs, double rhs) -> Result<bool> { return lhs <= rhs; }),
+    define("==", equal<double>, equal<const std::string&>, equal<bool>, equal<NullValue>),
+    define("!=", notEqual<double>, notEqual<const std::string&>, notEqual<bool>, notEqual<NullValue>),
+    define(">", [](double lhs, double rhs) -> Result<bool> { return lhs > rhs; },
+        [](const std::string& lhs, const std::string& rhs) -> Result<bool> { return lhs > rhs; }
+    ),
+    define(">=", [](double lhs, double rhs) -> Result<bool> { return lhs >= rhs; },
+        [](const std::string& lhs, const std::string& rhs) -> Result<bool> { return lhs >= rhs; }
+    ),
+    define("<", [](double lhs, double rhs) -> Result<bool> { return lhs < rhs; },
+        [](const std::string& lhs, const std::string& rhs) -> Result<bool> { return lhs < rhs; }
+    ),
+    define("<=", [](double lhs, double rhs) -> Result<bool> { return lhs <= rhs; },
+        [](const std::string& lhs, const std::string& rhs) -> Result<bool> { return lhs <= rhs; }
+    ),
     
     define("||", [](const Varargs<bool>& args) -> Result<bool> {
         bool result = false;
