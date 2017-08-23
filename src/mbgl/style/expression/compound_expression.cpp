@@ -49,12 +49,12 @@ struct Signature<R (const EvaluationParameters&, Params...)> : SignatureBase {
 private:
     template <std::size_t ...I>
     EvaluationResult applyImpl(const EvaluationParameters& evaluationParameters, const Args& args, std::index_sequence<I...>) const {
-        const std::vector<EvaluationResult>& evaluated = {std::get<I>(args)->evaluate(evaluationParameters)...};
+        const std::array<EvaluationResult, sizeof...(I)>& evaluated = {{std::get<I>(args)->evaluate(evaluationParameters)...}};
         for (const auto& arg : evaluated) {
             if(!arg) return arg.error();
         }
         // TODO: assert correct runtime type of each arg value
-        const R& value = evaluate(evaluationParameters, get<Params>(*(evaluated.at(I)))...);
+        const R& value = evaluate(evaluationParameters, get<Params>(*(evaluated[I]))...);
         if (!value) return value.error();
         return *value;
     }
@@ -126,12 +126,12 @@ struct Signature<R (Params...)> : SignatureBase {
 private:
     template <std::size_t ...I>
     EvaluationResult applyImpl(const EvaluationParameters& evaluationParameters, const Args& args, std::index_sequence<I...>) const {
-        const std::vector<EvaluationResult>& evaluated = {std::get<I>(args)->evaluate(evaluationParameters)...};
+        const std::array<EvaluationResult, sizeof...(I)>& evaluated = {{std::get<I>(args)->evaluate(evaluationParameters)...}};
         for (const auto& arg : evaluated) {
             if(!arg) return arg.error();
         }
         // TODO: assert correct runtime type of each arg value
-        const R& value = evaluate(get<Params>(*(evaluated.at(I)))...);
+        const R& value = evaluate(get<Params>(*(evaluated[I]))...);
         if (!value) return value.error();
         return *value;
     }
