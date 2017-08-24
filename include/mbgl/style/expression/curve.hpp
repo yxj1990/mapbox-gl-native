@@ -6,6 +6,9 @@
 #include <mbgl/util/unitbezier.hpp>
 #include <mbgl/style/expression/expression.hpp>
 #include <mbgl/style/expression/compound_expression.hpp>
+#include <mbgl/style/expression/coalesce.hpp>
+#include <mbgl/style/expression/let.hpp>
+
 
 namespace mbgl {
 namespace style {
@@ -112,11 +115,46 @@ public:
         }
     }
     
-    bool isZoomCurve() const {
-        if (auto z = dynamic_cast<CompoundExpressionBase*>(input.get())) {
-            return z->getName() == "zoom";
+    static optional<Curve*> findZoomCurve(expression::Expression* e) {
+        if (auto curve = dynamic_cast<Curve*>(e)) {
+            auto z = dynamic_cast<CompoundExpressionBase*>(curve->input.get());
+            if (z && z->getName() == "zoom") {
+                return {curve};
+            } else {
+                return optional<Curve*>();
+            }
+        } else if (auto let = dynamic_cast<Let*>(e)) {
+            return findZoomCurve(let->getResult());
+        } else if (auto coalesce = dynamic_cast<Coalesce*>(e)) {
+            std::size_t length = coalesce->getLength();
+            for (std::size_t i = 0; i < length; i++) {
+                optional<Curve*> childCurve = findZoomCurve(coalesce->getChild(i));
+                if (!childCurve) {
+                    continue;
+                } else {
+                    return childCurve;
+                }
+            }
         }
-        return false;
+        
+        return optional<Curve*>();
+    }
+
+    // Return the smallest range of stops that covers the interval [lower, upper]
+    Range<float> getCoveringStops(const double lower, const double upper) const {
+        assert(!stops.empty());
+        auto minIt = stops.lower_bound(lower);
+        auto maxIt = stops.lower_bound(upper);
+        
+        // lower_bound yields first element >= lowerZoom, but we want the *last*
+        // element <= lowerZoom, so if we found a stop > lowerZoom, back up by one.
+        if (minIt != stops.begin() && minIt != stops.end() && minIt->first > lower) {
+            minIt--;
+        }
+        return Range<float> {
+            static_cast<float>(minIt == stops.end() ? stops.rbegin()->first : minIt->first),
+            static_cast<float>(maxIt == stops.end() ? stops.rbegin()->first : maxIt->first)
+        };
     }
     
     double interpolationFactor(const Range<double>& inputLevels, const double& inputValue) const {
@@ -159,9 +197,9 @@ private:
     }
     
 
-    Interpolator interpolator;
-    std::unique_ptr<Expression> input;
-    std::map<double, std::unique_ptr<Expression>> stops;
+    const Interpolator interpolator;
+    const std::unique_ptr<Expression> input;
+    const std::map<double, std::unique_ptr<Expression>> stops;
 };
 
 } // namespace expression

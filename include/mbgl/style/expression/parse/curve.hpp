@@ -187,7 +187,7 @@ struct ParseCurve {
             [&](const type::Array& arrayType) -> ParseResult {
                 return interpolator.match(
                     [&](const StepInterpolator& interp) {
-                        return ParseResult(std::make_unique<Curve<double>>(
+                        return ParseResult(std::make_unique<Curve<std::vector<Value>>>(
                             *outputType, interp, std::move(*input), std::move(stops)
                         ));
                     },

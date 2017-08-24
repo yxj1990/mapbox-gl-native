@@ -65,46 +65,7 @@ std::string stringify(const Value& value) {
     );
 }
 
-
-template <class T, class Enable = void>
-struct Converter {
-    static Value toExpressionValue(const T& value) {
-        return Value(value);
-    }
-    static optional<T> fromExpressionValue(const Value& value) {
-        return value.template is<T>() ? value.template get<T>() : optional<T>();
-    }
-};
-
-template <>
-struct Converter<float> {
-    static Value toExpressionValue(const float& value) {
-        return static_cast<double>(value);
-    }
-    
-    static optional<float> fromExpressionValue(const Value& value) {
-        if (value.template is<double>()) {
-            double v = value.template get<double>();
-            if (v <= Value::max()) {
-                return static_cast<float>(v);
-            }
-        }
-        return optional<float>();
-    }
-    
-    static type::Type expressionType() {
-        return type::Number;
-    }
-};
-
-template<>
-struct Converter<mbgl::Value> {
-    static Value toExpressionValue(const mbgl::Value& value) {
-        return mbgl::Value::visit(value, Converter<mbgl::Value>());
-    }
-
-
-    // Double duty as a variant visitor for mbgl::Value:
+struct FromMBGLValue {
     Value operator()(const std::vector<mbgl::Value>& v) {
         std::vector<Value> result;
         for(const auto& item : v) {
@@ -133,107 +94,107 @@ struct Converter<mbgl::Value> {
     }
 };
 
+Value ValueConverter<mbgl::Value>::toExpressionValue(const mbgl::Value& value) {
+    return mbgl::Value::visit(value, FromMBGLValue());
+}
+
+
+Value ValueConverter<float>::toExpressionValue(const float& value) {
+    return static_cast<double>(value);
+}
+
+optional<float> ValueConverter<float>::fromExpressionValue(const Value& value) {
+    if (value.template is<double>()) {
+        double v = value.template get<double>();
+        if (v <= Value::max()) {
+            return static_cast<float>(v);
+        }
+    }
+    return optional<float>();
+}
+
+
 template <typename T, typename Container>
 std::vector<Value> toArrayValue(const Container& value) {
     std::vector<Value> result;
     for (const T& item : value) {
-        result.push_back(Converter<T>::toExpressionValue(item));
+        result.push_back(ValueConverter<T>::toExpressionValue(item));
     }
     return result;
 }
 
 template <typename T, std::size_t N>
-struct Converter<std::array<T, N>> {
-    static Value toExpressionValue(const std::array<T, N>& value) {
-        return toArrayValue<T>(value);
-    }
-    
-    static optional<std::array<T, N>> fromExpressionValue(const Value& value) {
-        return value.match(
-            [&] (const std::vector<Value>& v) -> optional<std::array<T, N>> {
-                if (v.size() != N) return optional<std::array<T, N>>();
-                    std::array<T, N> result;
-                    auto it = result.begin();
-                    for(const Value& item : v) {
-                        optional<T> convertedItem = Converter<T>::fromExpressionValue(item);
-                        if (!convertedItem) {
-                            return optional<std::array<T, N>>();
-                        }
-                        *it = *convertedItem;
-                        it = std::next(it);
-                    }
-                    return result;
-            },
-            [&] (const auto&) { return optional<std::array<T, N>>(); }
-        );
-    }
-    
-    static type::Type expressionType() {
-        return type::Array(valueTypeToExpressionType<T>(), N);
-    }
-};
+Value ValueConverter<std::array<T, N>>::toExpressionValue(const std::array<T, N>& value) {
+    return toArrayValue<T>(value);
+}
 
-template <typename T>
-struct Converter<std::vector<T>> {
-    static Value toExpressionValue(const std::vector<T>& value) {
-        return toArrayValue<T>(value);
-    }
-    
-    static optional<std::vector<T>> fromExpressionValue(const Value& value) {
-        return value.match(
-            [&] (const std::vector<Value>& v) -> optional<std::vector<T>> {
-                std::vector<T> result;
+template <typename T, std::size_t N>
+optional<std::array<T, N>> ValueConverter<std::array<T, N>>::fromExpressionValue(const Value& value) {
+    return value.match(
+        [&] (const std::vector<Value>& v) -> optional<std::array<T, N>> {
+            if (v.size() != N) return optional<std::array<T, N>>();
+                std::array<T, N> result;
+                auto it = result.begin();
                 for(const Value& item : v) {
-                    optional<T> convertedItem = Converter<T>::fromExpressionValue(item);
+                    optional<T> convertedItem = ValueConverter<T>::fromExpressionValue(item);
                     if (!convertedItem) {
-                        return optional<std::vector<T>>();
+                        return optional<std::array<T, N>>();
                     }
-                    result.push_back(*convertedItem);
+                    *it = *convertedItem;
+                    it = std::next(it);
                 }
                 return result;
-            },
-            [&] (const auto&) { return optional<std::vector<T>>(); }
-        );
-    }
-    
-    static type::Type expressionType() {
-        return type::Array(valueTypeToExpressionType<T>());
-    }
-};
+        },
+        [&] (const auto&) { return optional<std::array<T, N>>(); }
+    );
+}
 
-template <>
-struct Converter<Position> {
-    static Value toExpressionValue(const mbgl::style::Position& value) {
-        return Converter<std::array<float, 3>>::toExpressionValue(value.getSpherical());
-    }
-    
-    static optional<Position> fromExpressionValue(const Value& v) {
-        auto pos = Converter<std::array<float, 3>>::fromExpressionValue(v);
-        return pos ? optional<Position>(Position(*pos)) : optional<Position>();
-    }
-    
-    static type::Type expressionType() {
-        return type::Array(type::Number, 3);
-    }
-};
 
 template <typename T>
-struct Converter<T, std::enable_if_t< std::is_enum<T>::value >> {
-    static Value toExpressionValue(const T& value) {
-        return std::string(Enum<T>::toString(value));
-    }
-    
-    static optional<T> fromExpressionValue(const Value& value) {
-        return value.match(
-            [&] (const std::string& v) { return Enum<T>::toEnum(v); },
-            [&] (const auto&) { return optional<T>(); }
-        );
-    }
-    
-    static type::Type expressionType() {
-        return type::String;
-    }
-};
+Value ValueConverter<std::vector<T>>::toExpressionValue(const std::vector<T>& value) {
+    return toArrayValue<T>(value);
+}
+
+template <typename T>
+optional<std::vector<T>> ValueConverter<std::vector<T>>::fromExpressionValue(const Value& value) {
+    return value.match(
+        [&] (const std::vector<Value>& v) -> optional<std::vector<T>> {
+            std::vector<T> result;
+            for(const Value& item : v) {
+                optional<T> convertedItem = ValueConverter<T>::fromExpressionValue(item);
+                if (!convertedItem) {
+                    return optional<std::vector<T>>();
+                }
+                result.push_back(*convertedItem);
+            }
+            return result;
+        },
+        [&] (const auto&) { return optional<std::vector<T>>(); }
+    );
+}
+
+Value ValueConverter<Position>::toExpressionValue(const mbgl::style::Position& value) {
+    return ValueConverter<std::array<float, 3>>::toExpressionValue(value.getSpherical());
+}
+
+optional<Position> ValueConverter<Position>::fromExpressionValue(const Value& v) {
+    auto pos = ValueConverter<std::array<float, 3>>::fromExpressionValue(v);
+    return pos ? optional<Position>(Position(*pos)) : optional<Position>();
+}
+
+template <typename T>
+Value ValueConverter<T, std::enable_if_t< std::is_enum<T>::value >>::toExpressionValue(const T& value) {
+    return std::string(Enum<T>::toString(value));
+}
+
+template <typename T>
+optional<T> ValueConverter<T, std::enable_if_t< std::is_enum<T>::value >>::fromExpressionValue(const Value& value) {
+    return value.match(
+        [&] (const std::string& v) { return Enum<T>::toEnum(v); },
+        [&] (const auto&) { return optional<T>(); }
+    );
+}
+
 
 Value toExpressionValue(const Value& v) {
     return v;
@@ -241,19 +202,19 @@ Value toExpressionValue(const Value& v) {
 
 template <typename T, typename Enable>
 Value toExpressionValue(const T& value) {
-    return Converter<T>::toExpressionValue(value);
+    return ValueConverter<T>::toExpressionValue(value);
 }
 
 template <typename T>
 std::enable_if_t< !std::is_convertible<T, Value>::value,
 optional<T>> fromExpressionValue(const Value& v)
 {
-    return Converter<T>::fromExpressionValue(v);
+    return ValueConverter<T>::fromExpressionValue(v);
 }
 
 template <typename T>
 type::Type valueTypeToExpressionType() {
-    return Converter<T>::expressionType();
+    return ValueConverter<T>::expressionType();
 }
 
 template <> type::Type valueTypeToExpressionType<Value>() { return type::Value; }

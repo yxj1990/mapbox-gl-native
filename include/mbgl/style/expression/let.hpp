@@ -19,6 +19,10 @@ public:
     
     EvaluationResult evaluate(const EvaluationParameters& params) const override;
     void accept(std::function<void(const Expression*)>) const override;
+    
+    Expression* getResult() const {
+        return result.get();
+    }
 
 private:
     Bindings bindings;

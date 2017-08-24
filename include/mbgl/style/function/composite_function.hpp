@@ -1,8 +1,8 @@
 #pragma once
 
 #include <mbgl/style/expression/expression.hpp>
-#include <mbgl/style/expression/coalesce.hpp>
 #include <mbgl/style/expression/curve.hpp>
+#include <mbgl/style/expression/value.hpp>
 #include <mbgl/style/function/convert.hpp>
 #include <mbgl/style/function/composite_exponential_stops.hpp>
 #include <mbgl/style/function/composite_interval_stops.hpp>
@@ -47,11 +47,11 @@ public:
             CompositeIntervalStops<T>,
             CompositeCategoricalStops<T>>>;
 
-    using Curve = expression::Curve<T>;
+    using Curve = expression::Curve<typename expression::ValueConverter<T>::ExpressionType>;
 
     CompositeFunction(std::unique_ptr<expression::Expression> expression_)
     :   expression(std::move(expression_)),
-        zoomCurve(*findZoomCurve(expression.get()))
+        zoomCurve(*Curve::findZoomCurve(expression.get()))
     {
         assert(!expression->isZoomConstant());
         assert(!expression->isFeatureConstant());
@@ -64,7 +64,7 @@ public:
         expression(stops.match([&] (const auto& s) {
             return expression::Convert::toExpression(property, s, defaultValue);
         })),
-        zoomCurve(*findZoomCurve(expression.get()))
+        zoomCurve(*Curve::findZoomCurve(expression.get()))
     {}
 
     // Return the range obtained by evaluating the function at each of the zoom levels in zoomRange
@@ -88,35 +88,15 @@ public:
     float interpolationFactor(const Range<float>& inputLevels, const float& inputValue) const {
         return zoomCurve->interpolationFactor(Range<double> { inputLevels.min, inputLevels.max }, inputValue);
     }
+    
+    Range<float> getCoveringStops(const float lower, const float upper) const {
+        return zoomCurve->getCoveringStops(lower, upper);
+    }
 
     friend bool operator==(const CompositeFunction& lhs,
                            const CompositeFunction& rhs) {
         return std::tie(lhs.property, lhs.stops, lhs.defaultValue)
             == std::tie(rhs.property, rhs.stops, rhs.defaultValue);
-    }
-
-    static optional<Curve*> findZoomCurve(expression::Expression* e) {
-        if (auto curve = dynamic_cast<Curve*>(e)) {
-            if(curve->isZoomCurve()) {
-                return {curve};
-            } else {
-                return optional<Curve*>();
-            }
-//        } else if (auto let = dynamic_cast<expression::Let*>(e)) {
-//            return let->getUnsafeResultExpressionPointer();
-        } else if (auto coalesce = dynamic_cast<expression::Coalesce*>(e)) {
-            std::size_t length = coalesce->getLength();
-            for (std::size_t i = 0; i < length; i++) {
-                optional<Curve*> childCurve = findZoomCurve(coalesce->getChild(i));
-                if (!childCurve) {
-                    continue;
-                } else {
-                    return childCurve;
-                }
-            }
-        }
-        
-        return optional<Curve*>();
     }
 
     std::string property;

@@ -103,10 +103,10 @@ struct Convert {
     template <typename T>
     static ParseResult makeCurve(std::unique_ptr<Expression> input,
                                  std::map<double, std::unique_ptr<Expression>> convertedStops,
-                                 typename Curve<T>::Interpolator interpolator,
+                                 typename Curve<typename ValueConverter<T>::ExpressionType>::Interpolator interpolator,
                                  optional<T> defaultValue)
     {
-        ParseResult curve = ParseResult(std::make_unique<Curve<T>>(
+        ParseResult curve = ParseResult(std::make_unique<Curve<typename ValueConverter<T>::ExpressionType>>(
             valueTypeToExpressionType<T>(),
             std::move(interpolator),
             std::move(input),
