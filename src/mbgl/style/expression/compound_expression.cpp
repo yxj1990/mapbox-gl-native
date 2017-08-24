@@ -49,12 +49,12 @@ struct Signature<R (const EvaluationParameters&, Params...)> : SignatureBase {
 private:
     template <std::size_t ...I>
     EvaluationResult applyImpl(const EvaluationParameters& evaluationParameters, const Args& args, std::index_sequence<I...>) const {
-        const std::array<EvaluationResult, sizeof...(I)>& evaluated = {{std::get<I>(args)->evaluate(evaluationParameters)...}};
+        const std::array<EvaluationResult, sizeof...(I)> evaluated = {{std::get<I>(args)->evaluate(evaluationParameters)...}};
         for (const auto& arg : evaluated) {
             if(!arg) return arg.error();
         }
         // TODO: assert correct runtime type of each arg value
-        const R& value = evaluate(evaluationParameters, get<Params>(*(evaluated[I]))...);
+        const R value = evaluate(evaluationParameters, get<Params>(*(evaluated[I]))...);
         if (!value) return value.error();
         return *value;
     }
@@ -85,11 +85,11 @@ struct Signature<R (const Varargs<T>&)> : SignatureBase {
     EvaluationResult apply(const EvaluationParameters& evaluationParameters, const Args& args) const {
         Varargs<T> evaluated;
         for (const auto& arg : args) {
-            const auto& evaluatedArg = arg->evaluate<T>(evaluationParameters);
+            const Result<T> evaluatedArg = arg->evaluate<T>(evaluationParameters);
             if(!evaluatedArg) return evaluatedArg.error();
             evaluated.push_back(*evaluatedArg);
         }
-        const R& value = evaluate(evaluated);
+        const R value = evaluate(evaluated);
         if (!value) return value.error();
         return *value;
     }
@@ -126,12 +126,12 @@ struct Signature<R (Params...)> : SignatureBase {
 private:
     template <std::size_t ...I>
     EvaluationResult applyImpl(const EvaluationParameters& evaluationParameters, const Args& args, std::index_sequence<I...>) const {
-        const std::array<EvaluationResult, sizeof...(I)>& evaluated = {{std::get<I>(args)->evaluate(evaluationParameters)...}};
+        const std::array<EvaluationResult, sizeof...(I)> evaluated = {{std::get<I>(args)->evaluate(evaluationParameters)...}};
         for (const auto& arg : evaluated) {
             if(!arg) return arg.error();
         }
         // TODO: assert correct runtime type of each arg value
-        const R& value = evaluate(get<Params>(*(evaluated[I]))...);
+        const R value = evaluate(get<Params>(*(evaluated[I]))...);
         if (!value) return value.error();
         return *value;
     }
@@ -173,7 +173,7 @@ ParseResult CompoundExpressionRegistry::create(const std::string& name,
         
         
         if (signature->params.is<std::vector<type::Type>>()) {
-            const auto& params = signature->params.get<std::vector<type::Type>>();
+            const std::vector<type::Type>& params = signature->params.get<std::vector<type::Type>>();
             if (params.size() != args.size()) {
                 signatureContext.error(
                     "Expected " + std::to_string(params.size()) +
@@ -183,13 +183,13 @@ ParseResult CompoundExpressionRegistry::create(const std::string& name,
             }
 
             for (std::size_t i = 0; i < args.size(); i++) {
-                const auto& arg = args.at(i);
+                const std::unique_ptr<Expression>& arg = args[i];
                 checkSubtype(params.at(i), arg->getType(), ParsingContext(signatureContext, i + 1));
             }
         } else if (signature->params.is<VarargsType>()) {
-            const auto& paramType = signature->params.get<VarargsType>().type;
+            const type::Type& paramType = signature->params.get<VarargsType>().type;
             for (std::size_t i = 0; i < args.size(); i++) {
-                const auto& arg = args.at(i);
+                const std::unique_ptr<Expression>& arg = args[i];
                 checkSubtype(paramType, arg->getType(), ParsingContext(signatureContext, i + 1));
             }
         }
@@ -242,11 +242,11 @@ template <typename ...Evals, typename std::enable_if_t<sizeof...(Evals) != 0, in
 static std::pair<std::string, Definition> define(std::string name, Evals... evalFunctions) {
     Definition definition;
     expand_pack(definition.push_back(std::make_unique<Signature<Evals>>(evalFunctions)));
-    const auto& t0 = definition.at(0)->result;
+    const type::Type& t0 = definition[0]->result;
     for (const auto& signature : definition) {
         assert(t0 == signature->result);
-        (void)signature;
-        (void)t0;
+        (void)signature; // avoid unused variable warning
+        (void)t0; // avoid unused variable warning
     }
     return std::pair<std::string, Definition>(name, std::move(definition));
 }
@@ -361,7 +361,7 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
     }),
     
     define("parse_color", [](const std::string& colorString) -> Result<mbgl::Color> {
-        const auto& result = mbgl::Color::parse(colorString);
+        const optional<mbgl::Color> result = mbgl::Color::parse(colorString);
         if (result) return *result;
         return EvaluationError {
             "Could not parse color from value '" + colorString + "'"
@@ -428,7 +428,7 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
             };
         }
         std::unordered_map<std::string, Value> result;
-        const auto& properties = params.feature->getProperties();
+        const PropertyMap properties = params.feature->getProperties();
         for (const auto& entry : properties) {
             result[entry.first] = toExpressionValue(entry.second);
         }

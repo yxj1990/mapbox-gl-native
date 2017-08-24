@@ -67,7 +67,7 @@ public:
     {}
     
     EvaluationResult evaluate(const EvaluationParameters& params) const override {
-        const auto& x = input->evaluate<float>(params);
+        const Result<float> x = input->evaluate<float>(params);
         if (!x) { return x.error(); }
         
         if (stops.empty()) {
@@ -147,7 +147,7 @@ private:
                 ", but found " + toString(typeOf(outputs.min)) + " instead."
             };
         }
-        const auto& upper = fromExpressionValue<T>(outputs.max);
+        const optional<T> upper = fromExpressionValue<T>(outputs.max);
         if (!upper) {
             return EvaluationError {
                 "Expected value to be of type " + toString(valueTypeToExpressionType<T>()) +

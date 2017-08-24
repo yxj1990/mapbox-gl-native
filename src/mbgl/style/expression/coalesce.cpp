@@ -6,7 +6,7 @@ namespace expression {
 
 EvaluationResult Coalesce::evaluate(const EvaluationParameters& params) const {
     for (auto it = args.begin(); it != args.end(); it++) {
-        const auto& result = (*it)->evaluate(params);
+        const EvaluationResult result = (*it)->evaluate(params);
         if (!result && (std::next(it) != args.end())) {
             continue;
         }

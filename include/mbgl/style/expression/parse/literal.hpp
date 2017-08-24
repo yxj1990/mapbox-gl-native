@@ -17,7 +17,7 @@ namespace expression {
 struct ParseLiteral {
     template <class V>
     static ParseResult parse(const V& value, ParsingContext ctx) {
-        const optional<Value>& parsedValue = parseValue(value, ctx);
+        const optional<Value> parsedValue = parseValue(value, ctx);
         
         if (!parsedValue) {
             return ParseResult();

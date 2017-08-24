@@ -18,7 +18,7 @@ struct ParseCompoundExpression {
     static ParseResult parse(const V& value, ParsingContext ctx) {
         using namespace mbgl::style::conversion;
         assert(isArray(value) && arrayLength(value) > 0);
-        const auto& name = toString(arrayMember(value, 0));
+        const optional<std::string> name = toString(arrayMember(value, 0));
         assert(name);
         
         auto it = CompoundExpressionRegistry::definitions.find(*name);

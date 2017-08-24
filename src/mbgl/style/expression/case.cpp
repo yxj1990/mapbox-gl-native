@@ -6,7 +6,7 @@ namespace expression {
 
 EvaluationResult Case::evaluate(const EvaluationParameters& params) const {
     for (const auto& branch : branches) {
-        const auto& condition = branch.first->template evaluate<bool>(params);
+        const Result<bool> condition = branch.first->template evaluate<bool>(params);
         if (!condition) {
             return condition.error();
         }

@@ -16,8 +16,8 @@ type::Type typeOf(const Value& value) {
         [&](const std::vector<Value>& arr) -> type::Type {
             optional<type::Type> itemType;
             for (const auto& item : arr) {
-                const auto& t = typeOf(item);
-                const auto& tname = type::toString(t);
+                const type::Type t = typeOf(item);
+                const std::string tname = type::toString(t);
                 if (!itemType) {
                     itemType = {t};
                 } else if (type::toString(*itemType) == tname) {

@@ -35,7 +35,7 @@ ParseResult parseExpression(const V& value, ParsingContext context)
             return ParseResult();
         }
         
-        const optional<std::string>& op = toString(arrayMember(value, 0));
+        const optional<std::string> op = toString(arrayMember(value, 0));
         if (!op) {
             context.error(
                 "Expression name must be a string, but found " + getJSONType(arrayMember(value, 0)) +

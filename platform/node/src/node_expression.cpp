@@ -166,7 +166,7 @@ v8::Local<v8::Value> toJS(const Value& value) {
 
 void NodeExpression::Evaluate(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     NodeExpression* nodeExpr = ObjectWrap::Unwrap<NodeExpression>(info.Holder());
-    const auto& expression = nodeExpr->expression;
+    const std::unique_ptr<Expression>& expression = nodeExpr->expression;
 
     if (info.Length() < 2) {
         return Nan::ThrowTypeError("Requires arguments zoom and feature arguments.");
@@ -207,22 +207,22 @@ void NodeExpression::Evaluate(const Nan::FunctionCallbackInfo<v8::Value>& info) 
 
 void NodeExpression::GetType(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     NodeExpression* nodeExpr = ObjectWrap::Unwrap<NodeExpression>(info.Holder());
-    const auto& expression = nodeExpr->expression;
+    const std::unique_ptr<Expression>& expression = nodeExpr->expression;
 
-    const auto& type = expression->getType();
-    const auto& name = type.match([&] (const auto& t) { return t.getName(); });
+    const type::Type type = expression->getType();
+    const std::string name = type.match([&] (const auto& t) { return t.getName(); });
     info.GetReturnValue().Set(Nan::New(name.c_str()).ToLocalChecked());
 }
 
 void NodeExpression::IsFeatureConstant(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     NodeExpression* nodeExpr = ObjectWrap::Unwrap<NodeExpression>(info.Holder());
-    const auto& expression = nodeExpr->expression;
+    const std::unique_ptr<Expression>& expression = nodeExpr->expression;
     info.GetReturnValue().Set(Nan::New(expression->isFeatureConstant()));
 }
 
 void NodeExpression::IsZoomConstant(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     NodeExpression* nodeExpr = ObjectWrap::Unwrap<NodeExpression>(info.Holder());
-    const auto& expression = nodeExpr->expression;
+    const std::unique_ptr<Expression>& expression = nodeExpr->expression;
     info.GetReturnValue().Set(Nan::New(expression->isZoomConstant()));
 }
 

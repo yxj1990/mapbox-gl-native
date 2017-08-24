@@ -33,7 +33,7 @@ struct ParseCurve {
             return ParseResult();
         }
         
-        const auto& interp = arrayMember(value, 1);
+        const V& interp = arrayMember(value, 1);
         if (!isArray(interp) || arrayLength(interp) == 0) {
             ctx.error("Expected an interpolation type expression.");
             return ParseResult();
@@ -41,7 +41,7 @@ struct ParseCurve {
 
         Interpolator interpolator;
         
-        const auto& interpName = toString(arrayMember(interp, 0));
+        const optional<std::string> interpName = toString(arrayMember(interp, 0));
         ParsingContext interpContext = ParsingContext(ctx, 1);
         if (interpName && *interpName == "step") {
             interpolator = StepInterpolator();
@@ -95,7 +95,7 @@ struct ParseCurve {
         
         double previous = - std::numeric_limits<double>::infinity();
         for (std::size_t i = 3; i + 1 < length; i += 2) {
-            const optional<mbgl::Value>& labelValue = toValue(arrayMember(value, i));
+            const optional<mbgl::Value> labelValue = toValue(arrayMember(value, i));
             optional<double> label;
             optional<std::string> labelError;
             if (labelValue) {

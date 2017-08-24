@@ -15,7 +15,7 @@ void Match<T>::accept(std::function<void(const Expression*)> visit) const {
 }
 
 template<> EvaluationResult Match<std::string>::evaluate(const EvaluationParameters& params) const {
-    const Result<std::string>& inputValue = input->evaluate<std::string>(params);
+    const Result<std::string> inputValue = input->evaluate<std::string>(params);
     if (!inputValue) {
         return inputValue.error();
     }
@@ -29,7 +29,7 @@ template<> EvaluationResult Match<std::string>::evaluate(const EvaluationParamet
 }
 
 template<> EvaluationResult Match<int64_t>::evaluate(const EvaluationParameters& params) const {
-    const auto& inputValue = input->evaluate<float>(params);
+    const Result<float> inputValue = input->evaluate<float>(params);
     if (!inputValue) {
         return inputValue.error();
     }

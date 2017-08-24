@@ -95,7 +95,7 @@ public:
     */
     template <typename T>
     Result<T> evaluate(const EvaluationParameters& params) {
-        const auto& result = evaluate(params);
+        const EvaluationResult result = evaluate(params);
         if (!result) { return result.error(); }
         optional<T> converted = fromExpressionValue<T>(*result);
         if (converted) {
