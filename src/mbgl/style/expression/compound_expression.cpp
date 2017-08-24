@@ -313,8 +313,8 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
     define("boolean", assertion<bool>),
     define("object", assertion<std::unordered_map<std::string, Value>>),
     
-    define("to_string", [](const Value& v) -> Result<std::string> {
-        return v.match(
+    define("to_string", [](const Value& value) -> Result<std::string> {
+        return value.match(
             [](const std::unordered_map<std::string, Value>&) -> Result<std::string> {
                 return EvaluationError {
                     R"(Expected a primitive value in ["string", ...], but found Object instead.)"

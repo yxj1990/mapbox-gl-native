@@ -171,33 +171,33 @@ struct ParseCurve {
         
         return outputType->match(
             [&](const type::NumberType&) -> ParseResult {
-                return interpolator.match([&](const auto& interp) {
+                return interpolator.match([&](const auto& interpolator_) {
                     return ParseResult(std::make_unique<Curve<double>>(
-                        *outputType, interp, std::move(*input), std::move(stops)
+                        *outputType, interpolator_, std::move(*input), std::move(stops)
                     ));
                 });
             },
             [&](const type::ColorType&) -> ParseResult {
-                return interpolator.match([&](const auto& interp) {
+                return interpolator.match([&](const auto& interpolator_) {
                     return ParseResult(std::make_unique<Curve<mbgl::Color>>(
-                        *outputType, interp, std::move(*input), std::move(stops)
+                        *outputType, interpolator_, std::move(*input), std::move(stops)
                     ));
                 });
             },
             [&](const type::Array& arrayType) -> ParseResult {
                 return interpolator.match(
-                    [&](const StepInterpolator& interp) {
+                    [&](const StepInterpolator& stepInterpolator) {
                         return ParseResult(std::make_unique<Curve<std::vector<Value>>>(
-                            *outputType, interp, std::move(*input), std::move(stops)
+                            *outputType, stepInterpolator, std::move(*input), std::move(stops)
                         ));
                     },
-                    [&](const auto& interp) {
+                    [&](const auto& continuousInterpolator) {
                         if (arrayType.itemType != type::Number || !arrayType.N) {
                             assert(false); // interpolability already checked above.
                             return ParseResult();
                         }
                         return ParseResult(std::make_unique<Curve<std::vector<Value>>>(
-                            *outputType, interp, std::move(*input), std::move(stops)
+                            *outputType, continuousInterpolator, std::move(*input), std::move(stops)
                         ));
                     }
                 );
@@ -205,9 +205,9 @@ struct ParseCurve {
             [&](const auto&) {
                 // Null, Boolean, String, Object, Value output types only support step interpolation
                 return interpolator.match(
-                    [&](const StepInterpolator& interp) {
+                    [&](const StepInterpolator& stepInterpolator) {
                         return ParseResult(std::make_unique<Curve<double>>(
-                            *outputType, interp, std::move(*input), std::move(stops)
+                            *outputType, stepInterpolator, std::move(*input), std::move(stops)
                         ));
                     },
                     [&](const auto&) {

@@ -179,7 +179,7 @@ private:
                        std::unique_ptr<Expression>>& pair : branches) {
             std::shared_ptr<Expression> result = std::move(pair.second);
             for (const InputType& label : pair.first) {
-                const T& typedLabel = label.template get<T>();
+                const auto& typedLabel = label.template get<T>();
                 if (typedBranches.find(typedLabel) != typedBranches.end()) {
                     ctx.error("Branch labels must be unique.", index);
                     return ParseResult();

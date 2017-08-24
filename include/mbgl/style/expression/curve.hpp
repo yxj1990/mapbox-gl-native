@@ -166,7 +166,7 @@ public:
 private:
     template <typename OutputType = T>
     static EvaluationResult interpolate(const Range<Value>&, const double&,
-                                        typename std::enable_if<!util::Interpolatable<OutputType>::value>::type* = 0) {
+                                        typename std::enable_if<!util::Interpolatable<OutputType>::value>::type* = nullptr) {
         // Assume that Curve::evaluate() will always short circuit due to
         // interpolationFactor always returning 0.
         assert(false);
@@ -175,7 +175,7 @@ private:
     
     template <typename OutputType = T>
     static EvaluationResult interpolate(const Range<Value>& outputs, const double& t,
-                                        typename std::enable_if<util::Interpolatable<OutputType>::value>::type* = 0) {
+                                        typename std::enable_if<util::Interpolatable<OutputType>::value>::type* = nullptr) {
         optional<T> lower = fromExpressionValue<T>(outputs.min);
         if (!lower) {
             // TODO - refactor fromExpressionValue to return EvaluationResult<T> so as to
