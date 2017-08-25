@@ -199,7 +199,7 @@ public:
         return { true, false, unused, unused, unused };
     }
     
-    const style::SourceFunction<float>& function;
+    style::SourceFunction<float> function;
     const float defaultValue;
 };
 
@@ -230,7 +230,7 @@ public:
         return { false, false, sizeInterpolationT, unused, unused };
     }
     
-    const style::CompositeFunction<float>& function;
+    style::CompositeFunction<float> function;
     const float defaultValue;
     float layoutZoom;
     Range<float> coveringZoomStops;
