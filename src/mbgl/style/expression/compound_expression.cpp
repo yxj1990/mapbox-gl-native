@@ -463,9 +463,7 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
     
         auto id = params.feature->getID();
         if (!id) {
-            return EvaluationError {
-                "Property 'id' not found in feature"
-            };
+            return Null;
         }
         return id->match(
             [](const auto& idValue) {
