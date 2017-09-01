@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+#include <cctype>
 #include <mbgl/style/conversion/get_json_type.hpp>
 #include <mbgl/style/expression/parse.hpp>
 #include <mbgl/style/expression/let.hpp>
@@ -29,6 +31,14 @@ struct ParseLet {
             optional<std::string> name = toString(arrayMember(value, i));
             if (!name) {
                 ctx.error("Expected string, but found " + getJSONType(arrayMember(value, i)) + " instead.", i);
+                return ParseResult();
+            }
+            
+            bool isValidName = std::all_of(name->begin(), name->end(), [](unsigned char c) {
+                return std::isalnum(c) || c == '_';
+            });
+            if (!isValidName) {
+                ctx.error("Variable names must contain only alphanumeric characters or '_'.", 1);
                 return ParseResult();
             }
             
