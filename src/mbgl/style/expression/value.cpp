@@ -87,10 +87,12 @@ struct FromMBGLValue {
     Value operator()(const mbgl::NullValue) { return Null; }
     Value operator()(const double& v) { return v; }
     Value operator()(const uint64_t& v) {
-        return v > static_cast<uint64_t>(Value::max()) ? static_cast<double>(Value::max()) : v;
+        return v > std::numeric_limits<double>::max() ?
+            std::numeric_limits<double>::infinity() : v;
     }
     Value operator()(const int64_t& v) {
-        return v > std::numeric_limits<double>::max() ? std::numeric_limits<double>::max() : v;
+        return v > std::numeric_limits<double>::max() ?
+            std::numeric_limits<double>::infinity() : v;
     }
 };
 
@@ -106,7 +108,7 @@ Value ValueConverter<float>::toExpressionValue(const float& value) {
 optional<float> ValueConverter<float>::fromExpressionValue(const Value& value) {
     if (value.template is<double>()) {
         double v = value.template get<double>();
-        if (v <= Value::max()) {
+        if (v <= std::numeric_limits<float>::max()) {
             return static_cast<float>(v);
         }
     }

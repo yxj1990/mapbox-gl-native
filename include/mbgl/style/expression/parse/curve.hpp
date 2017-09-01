@@ -101,22 +101,22 @@ struct ParseCurve {
             if (labelValue) {
                 labelValue->match(
                     [&](uint64_t n) {
-                        if (!Value::isSafeNumericValue(n)) {
-                            labelError = {"Numeric values must be no larger than " + std::to_string(Value::max()) + "."};
+                        if (n > std::numeric_limits<double>::max()) {
+                            label = {std::numeric_limits<double>::infinity()};
                         } else {
                             label = {static_cast<double>(n)};
                         }
                     },
                     [&](int64_t n) {
-                        if (!Value::isSafeNumericValue(n)) {
-                            labelError = {"Numeric values must be no larger than " + std::to_string(Value::max()) + "."};
+                        if (n > std::numeric_limits<double>::max()) {
+                            label = {std::numeric_limits<double>::infinity()};
                         } else {
                             label = {static_cast<double>(n)};
                         }
                     },
                     [&](double n) {
-                        if (!Value::isSafeNumericValue(n)) {
-                            labelError = {"Numeric values must be no larger than " + std::to_string(Value::max()) + "."};
+                        if (n > std::numeric_limits<double>::max()) {
+                            label = {std::numeric_limits<double>::infinity()};
                         } else {
                             label = {static_cast<double>(n)};
                         }

@@ -79,9 +79,9 @@ struct ParseLiteral {
         assert(v);
         
         return v->match(
-            [&](uint64_t n) { return checkNumber(n, ctx); },
-            [&](int64_t n) { return checkNumber(n, ctx); },
-            [&](double n) { return checkNumber(n, ctx); },
+            [&](uint64_t n) { return checkNumber(n); },
+            [&](int64_t n) { return checkNumber(n); },
+            [&](double n) { return checkNumber(n); },
             [&](const auto&) {
                 return optional<Value>(toExpressionValue(*v));
             }
@@ -89,10 +89,9 @@ struct ParseLiteral {
     }
     
     template <typename T>
-    static optional<Value> checkNumber(T n, ParsingContext ctx) {
-        if (!Value::isSafeNumericValue(n)) {
-            ctx.error("Numeric values must be no larger than " + std::to_string(Value::max()) + ".");
-            return optional<Value>();
+    static optional<Value> checkNumber(T n) {
+        if (n > std::numeric_limits<double>::max()) {
+            return {std::numeric_limits<double>::infinity()};
         } else {
             return {static_cast<double>(n)};
         }

@@ -28,14 +28,14 @@ struct Value : ValueBase {
     using ValueBase::ValueBase;
 
     // Javascript's Number.MAX_SAFE_INTEGER
-    static uint64_t max() { return 9007199254740991ULL; }
+    static uint64_t maxSafeInteger() { return 9007199254740991ULL; }
     
-    static bool isSafeNumericValue(uint64_t x) { return x <= max(); };
-    static bool isSafeNumericValue(int64_t x) {
-        return static_cast<uint64_t>(x > 0 ? x : -x) <= max();
+    static bool isSafeInteger(uint64_t x) { return x <= maxSafeInteger(); };
+    static bool isSafeInteger(int64_t x) {
+        return static_cast<uint64_t>(x > 0 ? x : -x) <= maxSafeInteger();
     }
-    static bool isSafeNumericValue(double x) {
-        return static_cast<uint64_t>(x > 0 ? x : -x) <= max();
+    static bool isSafeInteger(double x) {
+        return static_cast<uint64_t>(x > 0 ? x : -x) <= maxSafeInteger();
     }
     
 };

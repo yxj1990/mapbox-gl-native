@@ -115,24 +115,24 @@ private:
         if (value) {
             value->match(
                 [&] (uint64_t n) {
-                    if (!Value::isSafeNumericValue(n)) {
-                        ctx.error("Numeric values must be no larger than " + std::to_string(Value::max()) + ".");
+                    if (!Value::isSafeInteger(n)) {
+                        ctx.error("Branch labels must be integers no larger than " + std::to_string(Value::maxSafeInteger()) + ".");
                     } else {
                         type = {type::Number};
                         result = {static_cast<int64_t>(n)};
                     }
                 },
                 [&] (int64_t n) {
-                    if (!Value::isSafeNumericValue(n)) {
-                        ctx.error("Numeric values must be no larger than " + std::to_string(Value::max()) + ".");
+                    if (!Value::isSafeInteger(n)) {
+                        ctx.error("Branch labels must be integers no larger than " + std::to_string(Value::maxSafeInteger()) + ".");
                     } else {
                         type = {type::Number};
                         result = {n};
                     }
                 },
                 [&] (double n) {
-                    if (!Value::isSafeNumericValue(n)) {
-                        ctx.error("Numeric values must be no larger than " + std::to_string(Value::max()) + ".");
+                    if (!Value::isSafeInteger(n)) {
+                        ctx.error("Branch labels must be integers no larger than " + std::to_string(Value::maxSafeInteger()) + ".");
                     } else if (n != ceilf(n)) {
                         ctx.error("Numeric branch labels must be integer values.");
                     } else {
