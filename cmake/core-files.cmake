@@ -405,6 +405,7 @@ set(MBGL_CORE_FILES
     include/mbgl/style/expression/compound_expression.hpp
     include/mbgl/style/expression/curve.hpp
     include/mbgl/style/expression/expression.hpp
+    include/mbgl/style/expression/in.hpp
     include/mbgl/style/expression/let.hpp
     include/mbgl/style/expression/literal.hpp
     include/mbgl/style/expression/match.hpp
@@ -418,6 +419,7 @@ set(MBGL_CORE_FILES
     src/mbgl/style/expression/check_subtype.cpp
     src/mbgl/style/expression/coalesce.cpp
     src/mbgl/style/expression/compound_expression.cpp
+    src/mbgl/style/expression/in.cpp
     src/mbgl/style/expression/let.cpp
     src/mbgl/style/expression/match.cpp
     src/mbgl/style/expression/value.cpp
@@ -429,6 +431,7 @@ set(MBGL_CORE_FILES
     include/mbgl/style/expression/parse/coalesce.hpp
     include/mbgl/style/expression/parse/compound_expression.hpp
     include/mbgl/style/expression/parse/curve.hpp
+    include/mbgl/style/expression/parse/in.hpp
     include/mbgl/style/expression/parse/let.hpp
     include/mbgl/style/expression/parse/literal.hpp
     include/mbgl/style/expression/parse/match.hpp

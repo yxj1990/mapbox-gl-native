@@ -12,6 +12,7 @@
 #include <mbgl/style/expression/parse/coalesce.hpp>
 #include <mbgl/style/expression/parse/compound_expression.hpp>
 #include <mbgl/style/expression/parse/curve.hpp>
+#include <mbgl/style/expression/parse/in.hpp>
 #include <mbgl/style/expression/parse/let.hpp>
 #include <mbgl/style/expression/parse/literal.hpp>
 #include <mbgl/style/expression/parse/match.hpp>
@@ -74,6 +75,8 @@ ParseResult parseExpression(const V& value, ParsingContext context)
             parsed = ParseVar::parse(value, context);
         } else if (*op == "at") {
             parsed = ParseAt::parse(value, context);
+        } else if (*op == "contains") {
+            parsed = ParseIn::parse(value, context);
         } else {
             parsed = ParseCompoundExpression::parse(value, context);
         }

@@ -31,6 +31,7 @@ optional<std::string> checkSubtype(const Type& expected, const Type& t, optional
                 Number,
                 String,
                 Object,
+                Color,
                 Array(Value)
             };
             
