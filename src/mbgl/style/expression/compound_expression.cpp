@@ -481,7 +481,9 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
         }
         return sum;
     }),
-    define("-", [](double a, double b) -> Result<double> { return a - b; }),
+    define("-",
+        [](double a, double b) -> Result<double> { return a - b; },
+        [](double a) -> Result<double> { return -a; }),
     define("*", [](const Varargs<double>& args) -> Result<double> {
         double prod = 1.0f;
         for (auto arg : args) {
