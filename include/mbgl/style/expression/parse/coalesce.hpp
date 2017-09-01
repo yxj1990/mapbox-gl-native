@@ -23,7 +23,11 @@ struct ParseCoalesce {
         }
         
         Coalesce::Args args;
-        optional<type::Type> outputType = ctx.expected;
+        optional<type::Type> outputType;
+        if (ctx.expected && *ctx.expected != type::Value) {
+            outputType = ctx.expected;
+        }
+
         for (std::size_t i = 1; i < length; i++) {
             auto parsed = parseExpression(arrayMember(value, i), ParsingContext(ctx, i, outputType));
             if (!parsed) {

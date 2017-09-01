@@ -27,7 +27,10 @@ struct ParseCase {
             return ParseResult();
         }
         
-        optional<type::Type> outputType = ctx.expected;
+        optional<type::Type> outputType;
+        if (ctx.expected && *ctx.expected != type::Value) {
+            outputType = ctx.expected;
+        }
 
         std::vector<Case::Branch> branches;
         for (size_t i = 1; i + 1 < length; i += 2) {

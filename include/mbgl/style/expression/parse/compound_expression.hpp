@@ -35,7 +35,15 @@ struct ParseCompoundExpression {
         std::vector<std::unique_ptr<Expression>> args;
         auto length = arrayLength(value);
         for (std::size_t i = 1; i < length; i++) {
-            auto parsed = parseExpression(arrayMember(value, i), ParsingContext(ctx, i));
+            optional<type::Type> expected;
+            if (definition.size() == 1) {
+                expected = definition[0]->params.match(
+                    [](const VarargsType& varargs) { return varargs.type; },
+                    [&](const std::vector<type::Type>& params) { return params[i - 1]; }
+                );
+            }
+        
+            auto parsed = parseExpression(arrayMember(value, i), ParsingContext(ctx, i, expected));
             if (!parsed) {
                 return parsed;
             }

@@ -91,7 +91,10 @@ struct ParseCurve {
         }
         
         std::map<double, std::unique_ptr<Expression>> stops;
-        optional<type::Type> outputType = ctx.expected;
+        optional<type::Type> outputType;
+        if (ctx.expected && *ctx.expected != type::Value) {
+            outputType = ctx.expected;
+        }
         
         double previous = - std::numeric_limits<double>::infinity();
         for (std::size_t i = 3; i + 1 < length; i += 2) {

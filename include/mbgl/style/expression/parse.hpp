@@ -4,6 +4,8 @@
 #include <mbgl/style/conversion/get_json_type.hpp>
 #include <mbgl/style/expression/check_subtype.hpp>
 #include <mbgl/style/expression/expression.hpp>
+#include <mbgl/style/expression/compound_expression.hpp>
+
 #include <mbgl/style/expression/parse/at.hpp>
 #include <mbgl/style/expression/parse/array_assertion.hpp>
 #include <mbgl/style/expression/parse/case.hpp>
@@ -14,6 +16,8 @@
 #include <mbgl/style/expression/parse/literal.hpp>
 #include <mbgl/style/expression/parse/match.hpp>
 #include <mbgl/style/expression/parsing_context.hpp>
+#include <mbgl/style/expression/type.hpp>
+
 
 namespace mbgl {
 namespace style {
@@ -85,6 +89,26 @@ ParseResult parseExpression(const V& value, ParsingContext context)
     if (!parsed) {
         assert(context.errors.size() > 0);
     } else if (context.expected) {
+        auto wrapForType = [&](const std::string& wrapper, std::unique_ptr<Expression> expression) {
+            std::vector<std::unique_ptr<Expression>> args;
+            args.push_back(std::move(expression));
+            return CompoundExpressionRegistry::create(wrapper, std::move(args), context);
+        };
+        
+        const type::Type actual = (*parsed)->getType();
+        const type::Type expected = *context.expected;
+        if (expected == type::Color && (actual == type::String || actual == type::Value)) {
+            parsed = wrapForType("to-color", std::move(*parsed));
+        } else if (expected != type::Value && actual == type::Value) {
+            if (expected == type::String) {
+                parsed = wrapForType("string", std::move(*parsed));
+            } else if (expected == type::Number) {
+                parsed = wrapForType("number", std::move(*parsed));
+            } else if (expected == type::Boolean) {
+                parsed = wrapForType("boolean", std::move(*parsed));
+            }
+        }
+    
         checkSubtype(*(context.expected), (*parsed)->getType(), context);
         if (context.errors.size() > 0) {
             return ParseResult();

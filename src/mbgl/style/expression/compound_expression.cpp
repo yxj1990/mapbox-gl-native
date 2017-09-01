@@ -360,12 +360,43 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
         return std::array<double, 4> {{ color.r, color.g, color.b, color.a }};
     }),
     
-    define("parse-color", [](const std::string& colorString) -> Result<mbgl::Color> {
-        const optional<mbgl::Color> result = mbgl::Color::parse(colorString);
-        if (result) return *result;
-        return EvaluationError {
-            "Could not parse color from value '" + colorString + "'"
-        };
+    define("to-color", [](const Value& colorValue) -> Result<mbgl::Color> {
+        return colorValue.match(
+            [&](const std::string& colorString) -> Result<mbgl::Color> {
+                const optional<mbgl::Color> result = mbgl::Color::parse(colorString);
+                if (result) {
+                    return *result;
+                } else {
+                    return EvaluationError{
+                        "Could not parse color from value '" + colorString + "'"
+                    };
+                }
+            },
+            [&](const std::vector<Value>& components) -> Result<mbgl::Color> {
+                std::size_t len = components.size();
+                bool isNumeric = std::all_of(components.begin(), components.end(), [](const Value& item) {
+                    return item.template is<double>();
+                });
+                if ((len == 3 || len == 4) && isNumeric) {
+                    return {rgba(
+                        components[0].template get<double>(),
+                        components[1].template get<double>(),
+                        components[2].template get<double>(),
+                        len == 4 ? components[3].template get<double>() : 1.0
+                    )};
+                } else {
+                    return EvaluationError{
+                        "Could not parse color from value '" + stringify(colorValue) + "'"
+                    };
+                }
+            },
+            [&](const auto&) -> Result<mbgl::Color> {
+                return EvaluationError{
+                    "Could not parse color from value '" + stringify(colorValue) + "'"
+                };
+            }
+        );
+    
     }),
     
     define("rgba", rgba),

@@ -32,7 +32,11 @@ struct ParseMatch {
         }
         
         optional<type::Type> inputType;
-        optional<type::Type> outputType = ctx.expected;
+        optional<type::Type> outputType;
+        if (ctx.expected && *ctx.expected != type::Value) {
+            outputType = ctx.expected;
+        }
+
         std::vector<std::pair<std::vector<InputType>,
                               std::unique_ptr<Expression>>> branches;
         
