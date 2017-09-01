@@ -21,18 +21,15 @@ struct ParseCurve {
     static ParseResult parse(const V& value, ParsingContext ctx) {
         using namespace mbgl::style::conversion;
         assert(isArray(value));
+
         auto length = arrayLength(value);
-        if (length < 5) {
-            ctx.error("Expected at least 4 arguments, but found only " + std::to_string(length - 1) + ".");
+
+        // first parse interpolation, because further validation of the input depends upon
+        // whether or not this is a step curve
+        if (length < 2) {
+            ctx.error("Expected an interpolation type expression.");
             return ParseResult();
         }
-        
-        // [curve, interp, input, 2 * (n pairs)...]
-        if (length % 2 != 1) {
-            ctx.error("Expected an even number of arguments.");
-            return ParseResult();
-        }
-        
         const V& interp = arrayMember(value, 1);
         if (!isArray(interp) || arrayLength(interp) == 0) {
             ctx.error("Expected an interpolation type expression.");
@@ -40,11 +37,13 @@ struct ParseCurve {
         }
 
         Interpolator interpolator;
+        bool isStep = false;
         
         const optional<std::string> interpName = toString(arrayMember(interp, 0));
         ParsingContext interpContext = ParsingContext(ctx, 1);
         if (interpName && *interpName == "step") {
             interpolator = StepInterpolator();
+            isStep = true;
         } else if (interpName && *interpName == "linear") {
             interpolator = ExponentialInterpolator(1.0);
         } else if (interpName && *interpName == "exponential") {
@@ -85,6 +84,20 @@ struct ParseCurve {
             return ParseResult();
         }
         
+        std::size_t minArgs = isStep ? 5 : 4;
+        if (length - 1 < minArgs) {
+            ctx.error("Expected at least " + std::to_string(minArgs) + " arguments, but found only " + std::to_string(length - 1) + ".");
+            return ParseResult();
+        }
+        
+        bool parity = minArgs % 2;
+        // [curve, interp, input, 2 * (n pairs)...]
+        if ((length - 1) % 2 != parity) {
+            ctx.error("Expected an " + std::string(parity ? "odd" : "even") + " number of arguments.");
+            return ParseResult();
+        }
+        
+        
         ParseResult input = parseExpression(arrayMember(value, 2), ParsingContext(ctx, 2, {type::Number}));
         if (!input) {
             return input;
@@ -97,7 +110,22 @@ struct ParseCurve {
         }
         
         double previous = - std::numeric_limits<double>::infinity();
-        for (std::size_t i = 3; i + 1 < length; i += 2) {
+        
+        // If this is a step curve, the definition begins with an output value rather
+        // than an input level, so consume that output value before proceeding into the
+        // "stops" loop below.
+        if (isStep) {
+            auto output = parseExpression(arrayMember(value, 3), ParsingContext(ctx, 3, outputType));
+            if (!output) {
+                return ParseResult();
+            }
+            if (!outputType) {
+                outputType = (*output)->getType();
+            }
+            stops.emplace(-std::numeric_limits<double>::infinity(), std::move(*output));
+        }
+        
+        for (std::size_t i = isStep ? 4 : 3; i + 1 < length; i += 2) {
             const optional<mbgl::Value> labelValue = toValue(arrayMember(value, i));
             optional<double> label;
             optional<std::string> labelError;
