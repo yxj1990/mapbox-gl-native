@@ -313,7 +313,7 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
     define("boolean", assertion<bool>),
     define("object", assertion<std::unordered_map<std::string, Value>>),
     
-    define("to_string", [](const Value& value) -> Result<std::string> {
+    define("to-string", [](const Value& value) -> Result<std::string> {
         return value.match(
             [](const std::unordered_map<std::string, Value>&) -> Result<std::string> {
                 return EvaluationError {
@@ -328,7 +328,7 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
             [](const auto& v) -> Result<std::string> { return stringify(v); }
         );
     }),
-    define("to_number", [](const Value& v) -> Result<double> {
+    define("to-number", [](const Value& v) -> Result<double> {
         optional<double> result = v.match(
             [](const double f) -> optional<double> { return f; },
             [](const std::string& s) -> optional<double> {
@@ -347,7 +347,7 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
         }
         return *result;
     }),
-    define("to_boolean", [](const Value& v) -> Result<bool> {
+    define("to-boolean", [](const Value& v) -> Result<bool> {
         return v.match(
             [&] (double f) { return (bool)f; },
             [&] (const std::string& s) { return s.length() > 0; },
@@ -356,11 +356,11 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
             [&] (const auto&) { return true; }
         );
     }),
-    define("to_rgba", [](const mbgl::Color& color) -> Result<std::array<double, 4>> {
+    define("to-rgba", [](const mbgl::Color& color) -> Result<std::array<double, 4>> {
         return std::array<double, 4> {{ color.r, color.g, color.b, color.a }};
     }),
     
-    define("parse_color", [](const std::string& colorString) -> Result<mbgl::Color> {
+    define("parse-color", [](const std::string& colorString) -> Result<mbgl::Color> {
         const optional<mbgl::Color> result = mbgl::Color::parse(colorString);
         if (result) return *result;
         return EvaluationError {
@@ -435,7 +435,7 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
         return result;
     }),
     
-    define("geometry_type", [](const EvaluationParameters& params) -> Result<std::string> {
+    define("geometry-type", [](const EvaluationParameters& params) -> Result<std::string> {
         if (!params.feature) {
             return EvaluationError {
                 "Feature data is unavailable in the current evaluation context."

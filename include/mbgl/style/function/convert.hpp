@@ -339,7 +339,7 @@ struct Convert {
             [&] (const type::ColorType&) {
                 std::vector<std::unique_ptr<Expression>> args;
                 args.push_back(makeGet("string", property, ParsingContext(errors)));
-                ParseResult color = CompoundExpressionRegistry::create("parse_color", std::move(args), ParsingContext(errors));
+                ParseResult color = CompoundExpressionRegistry::create("to-color", std::move(args), ParsingContext(errors));
                 assert(color);
                 return std::move(*color);
             },

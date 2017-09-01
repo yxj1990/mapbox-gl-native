@@ -38,7 +38,7 @@ bool Expression::isFeatureConstant() const {
             } else {
                 featureConstant = featureConstant && !(
                     name == "properties" ||
-                    name == "geometry_type" ||
+                    name == "geometry-type" ||
                     name == "id"
                 );
             }
