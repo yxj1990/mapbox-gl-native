@@ -7,6 +7,7 @@
 #include <mbgl/storage/file_source.hpp>
 #include <mbgl/util/thread.hpp>
 #include <mbgl/util/run_loop.hpp>
+#include <mbgl/util/logging.hpp>
 
 #include "android_renderer_backend.hpp"
 
@@ -68,8 +69,16 @@ AndroidRendererFrontend::AndroidRendererFrontend(float pixelRatio,
                                                  std::string programCacheDir,
                                                  InvalidateCallback invalidate)
         : backend(std::make_unique<AndroidRendererBackend>())
-        , renderer(std::make_unique<util::Thread<Renderer>>(
-                "Orchestration Thread",
+        , glThreadCallback(std::make_unique<Actor<AndroidGLThread::InvalidateCallback>>(
+                *Scheduler::GetCurrent(),
+                [&]() {
+                    Log::Info(Event::JNI, "GL Thread invalidate callback");
+                    // TODO: replace the whole thing with rendererOberver.invalidate()?
+                    asyncInvalidate.send();
+                }
+        ))
+        , glThread(std::make_unique<AndroidGLThread>(
+                glThreadCallback->self(),
                 *backend,
                 pixelRatio,
                 fileSource,
@@ -86,15 +95,15 @@ AndroidRendererFrontend::AndroidRendererFrontend(float pixelRatio,
 AndroidRendererFrontend::~AndroidRendererFrontend() = default;
 
 void AndroidRendererFrontend::reset() {
-    assert(renderer);
-    renderer.reset();
+    assert(glThread);
+    glThread.reset();
 }
 
 void AndroidRendererFrontend::setObserver(RendererObserver& observer) {
-    assert (renderer);
+    assert (glThread);
     assert (util::RunLoop::Get());
     rendererObserver = std::make_unique<ForwardingRendererObserver>(*mapRunLoop, observer);
-    renderer->actor().invoke(&Renderer::setObserver, rendererObserver.get());
+    glThread->actor().invoke(&Renderer::setObserver, rendererObserver.get());
 }
 
 void AndroidRendererFrontend::update(std::shared_ptr<UpdateParameters> params) {
@@ -104,66 +113,66 @@ void AndroidRendererFrontend::update(std::shared_ptr<UpdateParameters> params) {
 
 // Called on OpenGL thread
 void AndroidRendererFrontend::render() {
-    assert (renderer);
+    assert (glThread);
     if (!updateParameters) return;
+
+    // Process the gl thread mailbox
+    glThread->process();
 
     // Activate the backend
     BackendScope backendGuard { *backend };
 
-    // Block the orchestration thread during render
-    util::BlockingThreadGuard<Renderer> rendererGuard { *renderer };
-
     // Ensure that the "current" scheduler on the render thread is
     // actually the scheduler from the orchestration  thread
-    Scheduler::SetCurrent(renderer.get());
+    Scheduler::SetCurrent(glThread.get());
 
     if (framebufferSizeChanged) {
         backend->updateViewPort();
         framebufferSizeChanged = false;
     }
 
-    rendererGuard.object().render(*updateParameters);
+    glThread->renderer->render(*updateParameters);
 }
 
 void AndroidRendererFrontend::onLowMemory() {
-    assert (renderer);
-    renderer->actor().invoke(&Renderer::onLowMemory);
+    assert (glThread);
+    glThread->actor().invoke(&Renderer::onLowMemory);
 }
 
 std::vector<Feature> AndroidRendererFrontend::querySourceFeatures(const std::string& sourceID,
                                                                   const SourceQueryOptions& options) const {
-    assert (renderer);
+    assert (glThread);
     // Waits for the result from the orchestration thread and returns
-    return renderer->actor().ask(&Renderer::querySourceFeatures, sourceID, options).get();
+    return glThread->actor().ask(&Renderer::querySourceFeatures, sourceID, options).get();
 }
 
 std::vector<Feature> AndroidRendererFrontend::queryRenderedFeatures(const ScreenBox& box,
                                                                     const RenderedQueryOptions& options) const {
-    assert (renderer);
+    assert (glThread);
 
     // Select the right overloaded method
     std::vector<Feature> (Renderer::*fn)(const ScreenBox&, const RenderedQueryOptions&) const = &Renderer::queryRenderedFeatures;
 
     // Waits for the result from the orchestration thread and returns
-    return renderer->actor().ask(fn, box, options).get();
+    return glThread->actor().ask(fn, box, options).get();
 }
 
 std::vector<Feature> AndroidRendererFrontend::queryRenderedFeatures(const ScreenCoordinate& point,
                                                                     const RenderedQueryOptions& options) const {
-    assert (renderer);
+    assert (glThread);
 
     // Select the right overloaded method
     std::vector<Feature> (Renderer::*fn)(const ScreenCoordinate&, const RenderedQueryOptions&) const = &Renderer::queryRenderedFeatures;
 
     // Waits for the result from the orchestration thread and returns
-    return renderer->actor().ask(fn, point, options).get();
+    return glThread->actor().ask(fn, point, options).get();
 }
 
 AnnotationIDs AndroidRendererFrontend::queryPointAnnotations(const ScreenBox& box) const {
-    assert (renderer);
+    assert (glThread);
 
     // Waits for the result from the orchestration thread and returns
-    return renderer->actor().ask(&Renderer::queryPointAnnotations, box).get();
+    return glThread->actor().ask(&Renderer::queryPointAnnotations, box).get();
 }
 
 void AndroidRendererFrontend::requestSnapshot(SnapshotCallback callback_) {
@@ -175,7 +184,6 @@ void AndroidRendererFrontend::requestSnapshot(SnapshotCallback callback_) {
 }
 
 void AndroidRendererFrontend::resizeFramebuffer(int width, int height) {
-    util::BlockingThreadGuard<Renderer> guard { *renderer };
     backend->resizeFramebuffer(width, height);
     framebufferSizeChanged = true;
     // TODO: thread safe?

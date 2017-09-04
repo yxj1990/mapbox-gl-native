@@ -1,6 +1,9 @@
 
 #pragma once
 
+#include "android_gl_thread.hpp"
+
+#include <mbgl/actor/actor.hpp>
 #include <mbgl/annotation/annotation.hpp>
 #include <mbgl/renderer/renderer_backend.hpp>
 #include <mbgl/renderer/renderer_frontend.hpp>
@@ -16,16 +19,10 @@
 
 namespace mbgl {
 
-class Renderer;
-
 class FileSource;
 class Scheduler;
 class RenderedQueryOptions;
 class SourceQueryOptions;
-
-namespace util {
-template <class> class Thread;
-} // namespace util
 
 namespace android {
 
@@ -68,7 +65,8 @@ public:
 
 private:
     std::unique_ptr<AndroidRendererBackend> backend;
-    std::unique_ptr<util::Thread<Renderer>> renderer;
+    std::unique_ptr<Actor<AndroidGLThread::InvalidateCallback>> glThreadCallback;
+    std::unique_ptr<AndroidGLThread> glThread;
     std::unique_ptr<RendererObserver> rendererObserver;
     std::shared_ptr<UpdateParameters> updateParameters;
     util::AsyncTask asyncInvalidate;
