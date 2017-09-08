@@ -1156,7 +1156,6 @@ final class NativeMapView implements GLSurfaceView.Renderer {
 
   @Override
   public void onDrawFrame(GL10 gl) {
-    Timber.i("[%s] onDrawFrame", Thread.currentThread().getName());
     nativeRender();
   }
 }
