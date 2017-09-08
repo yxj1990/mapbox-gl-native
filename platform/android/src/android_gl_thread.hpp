@@ -19,7 +19,7 @@ public:
     using InvalidateCallback = std::function<void ()>;
 
     template <class... Args>
-    AndroidGLThread(ActorRef<InvalidateCallback> callback_, Args&&... args)
+    AndroidGLThread(InvalidateCallback callback_, Args&&... args)
         : renderer(std::make_unique<Renderer>(std::forward<Args>(args)...))
         , mailbox(std::make_shared<Mailbox>(*this))
         , callback(callback_)
@@ -38,7 +38,8 @@ public:
             queue.push(scheduled);
         }
 
-        callback.invoke(&InvalidateCallback::operator());
+        // Invalidate so we get processing time later
+        callback();
     }
 
     // Only safe on the GL Thread
@@ -67,7 +68,7 @@ private:
     std::queue<std::weak_ptr<Mailbox>> queue;
 
     std::shared_ptr<Mailbox> mailbox;
-    ActorRef<InvalidateCallback> callback;
+    InvalidateCallback callback;
     ActorRef<Renderer> rendererRef;
 };
 

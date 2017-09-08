@@ -1,8 +1,6 @@
 #include "android_renderer_frontend.hpp"
 
 #include <mbgl/actor/scheduler.hpp>
-#include <mbgl/renderer/backend_scope.hpp>
-#include <mbgl/renderer/renderer.hpp>
 #include <mbgl/renderer/renderer_observer.hpp>
 #include <mbgl/storage/file_source.hpp>
 #include <mbgl/util/thread.hpp>
@@ -69,16 +67,8 @@ AndroidRendererFrontend::AndroidRendererFrontend(float pixelRatio,
                                                  std::string programCacheDir,
                                                  InvalidateCallback invalidate)
         : backend(std::make_unique<AndroidRendererBackend>())
-        , glThreadCallback(std::make_unique<Actor<AndroidGLThread::InvalidateCallback>>(
-                *Scheduler::GetCurrent(),
-                [&]() {
-                    Log::Info(Event::JNI, "GL Thread invalidate callback");
-                    // TODO: replace the whole thing with rendererOberver.invalidate()?
-                    asyncInvalidate.send();
-                }
-        ))
         , glThread(std::make_unique<AndroidGLThread>(
-                glThreadCallback->self(),
+                invalidate,
                 *backend,
                 pixelRatio,
                 fileSource,
@@ -86,7 +76,7 @@ AndroidRendererFrontend::AndroidRendererFrontend(float pixelRatio,
                 GLContextMode::Unique,
                 programCacheDir
         ))
-        , asyncInvalidate([=, invalidate=std::move(invalidate)]() {
+        , asyncInvalidate([=]() {
             invalidate();
         })
         , mapRunLoop(util::RunLoop::Get()) {
@@ -186,7 +176,6 @@ void AndroidRendererFrontend::requestSnapshot(SnapshotCallback callback_) {
 void AndroidRendererFrontend::resizeFramebuffer(int width, int height) {
     backend->resizeFramebuffer(width, height);
     framebufferSizeChanged = true;
-    // TODO: thread safe?
     asyncInvalidate.send();
 }
 

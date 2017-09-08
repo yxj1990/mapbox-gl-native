@@ -65,7 +65,6 @@ public:
 
 private:
     std::unique_ptr<AndroidRendererBackend> backend;
-    std::unique_ptr<Actor<AndroidGLThread::InvalidateCallback>> glThreadCallback;
     std::unique_ptr<AndroidGLThread> glThread;
     std::unique_ptr<RendererObserver> rendererObserver;
     std::shared_ptr<UpdateParameters> updateParameters;
