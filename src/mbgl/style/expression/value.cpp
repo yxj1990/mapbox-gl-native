@@ -282,9 +282,9 @@ template type::Type valueTypeToExpressionType<SymbolPlacementType>();
 template optional<SymbolPlacementType> fromExpressionValue<SymbolPlacementType>(const Value&);
 template Value toExpressionValue(const SymbolPlacementType&);
 
-template type::Type valueTypeToExpressionType<TextAnchorType>();
-template optional<TextAnchorType> fromExpressionValue<TextAnchorType>(const Value&);
-template Value toExpressionValue(const TextAnchorType&);
+template type::Type valueTypeToExpressionType<SymbolAnchorType>();
+template optional<SymbolAnchorType> fromExpressionValue<SymbolAnchorType>(const Value&);
+template Value toExpressionValue(const SymbolAnchorType&);
 
 template type::Type valueTypeToExpressionType<TextJustifyType>();
 template optional<TextJustifyType> fromExpressionValue<TextJustifyType>(const Value&);
