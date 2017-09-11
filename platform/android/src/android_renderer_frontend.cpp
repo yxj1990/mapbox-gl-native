@@ -65,10 +65,11 @@ AndroidRendererFrontend::AndroidRendererFrontend(float pixelRatio,
                                                  FileSource& fileSource,
                                                  Scheduler& scheduler,
                                                  std::string programCacheDir,
-                                                 InvalidateCallback invalidate)
+                                                 RequestRenderCallback requestRender,
+                                                 RequestProcessingCallback requestProcessing)
         : backend(std::make_unique<AndroidRendererBackend>())
         , glThread(std::make_unique<AndroidGLThread>(
-                invalidate,
+                std::move(requestProcessing),
                 *backend,
                 pixelRatio,
                 fileSource,
@@ -76,8 +77,8 @@ AndroidRendererFrontend::AndroidRendererFrontend(float pixelRatio,
                 GLContextMode::Unique,
                 programCacheDir
         ))
-        , asyncInvalidate([=]() {
-            invalidate();
+        , asyncInvalidate([requestRender=std::move(requestRender)]() {
+            requestRender();
         })
         , mapRunLoop(util::RunLoop::Get()) {
 }
@@ -119,9 +120,6 @@ void AndroidRendererFrontend::render() {
         params = updateParameters;
     }
 
-    // Process the gl thread mailbox
-    glThread->process();
-
     // Activate the backend
     BackendScope backendGuard { *backend };
 
@@ -135,6 +133,11 @@ void AndroidRendererFrontend::render() {
     }
 
     glThread->renderer->render(*params);
+}
+
+void AndroidRendererFrontend::process() {
+    // Process the gl thread mailbox
+    glThread->process();
 }
 
 void AndroidRendererFrontend::onLowMemory() {
