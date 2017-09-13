@@ -14,6 +14,7 @@
 #include <jni/jni.hpp>
 
 #include <mbgl/math/minmax.hpp>
+#include <mbgl/math/minmax.hpp>
 #include <mbgl/util/constants.hpp>
 #include <mbgl/util/event.hpp>
 #include <mbgl/util/exception.hpp>
@@ -26,6 +27,7 @@
 #include <mbgl/style/style.hpp>
 #include <mbgl/style/image.hpp>
 #include <mbgl/style/filter.hpp>
+#include <mbgl/renderer/query.hpp>
 
 // Java -> C++ conversion
 #include "style/android_conversion.hpp"
