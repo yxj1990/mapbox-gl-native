@@ -57,16 +57,16 @@ struct Convert {
     static std::unique_ptr<Expression> makeGet(const std::string& type, const std::string& property, ParsingContext ctx) {
         std::vector<std::unique_ptr<Expression>> getArgs;
         getArgs.push_back(makeLiteral(property));
-        ParseResult get = CompoundExpressionRegistry::create("get", std::move(getArgs), ctx);
+        ParseResult get = createCompoundExpression("get", std::move(getArgs), ctx);
 
         std::vector<std::unique_ptr<Expression>> assertionArgs;
         assertionArgs.push_back(std::move(*get));
         
-        return std::move(*(CompoundExpressionRegistry::create(type, std::move(assertionArgs), ctx)));
+        return std::move(*(createCompoundExpression(type, std::move(assertionArgs), ctx)));
     }
     
     static std::unique_ptr<Expression> makeZoom(ParsingContext ctx) {
-        return std::move(*(CompoundExpressionRegistry::create("zoom", std::vector<std::unique_ptr<Expression>>(), ctx)));
+        return std::move(*(createCompoundExpression("zoom", std::vector<std::unique_ptr<Expression>>(), ctx)));
     }
     
     static std::unique_ptr<Expression> makeError(std::string message) {
@@ -337,14 +337,14 @@ struct Convert {
             [&] (const type::ColorType&) {
                 std::vector<std::unique_ptr<Expression>> args;
                 args.push_back(makeGet("string", property, ParsingContext(errors)));
-                ParseResult color = CompoundExpressionRegistry::create("to-color", std::move(args), ParsingContext(errors));
+                ParseResult color = createCompoundExpression("to-color", std::move(args), ParsingContext(errors));
                 assert(color);
                 return std::move(*color);
             },
             [&] (const type::Array& arr) {
                 std::vector<std::unique_ptr<Expression>> getArgs;
                 getArgs.push_back(makeLiteral(property));
-                ParseResult get = CompoundExpressionRegistry::create("get", std::move(getArgs), ParsingContext(errors));
+                ParseResult get = createCompoundExpression("get", std::move(getArgs), ParsingContext(errors));
                 return std::make_unique<ArrayAssertion>(arr, std::move(*get));
             },
             [&] (const auto&) -> std::unique_ptr<Expression> {

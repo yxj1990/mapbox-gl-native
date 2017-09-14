@@ -179,84 +179,6 @@ struct Signature<Lambda, std::enable_if_t<std::is_class<Lambda>::value>>
 
 } // namespace detail
 
-
-ParseResult CompoundExpressionRegistry::create(const std::string& name,
-                              const Definition& definition,
-                              std::vector<std::unique_ptr<Expression>> args,
-                              ParsingContext ctx)
-{
-    std::vector<ParsingError> currentSignatureErrors;
-
-    ParsingContext signatureContext(currentSignatureErrors);
-    signatureContext.key = ctx.key;
-    
-    for (const std::unique_ptr<detail::SignatureBase>& signature : definition) {
-        currentSignatureErrors.clear();
-        
-        
-        if (signature->params.is<std::vector<type::Type>>()) {
-            const std::vector<type::Type>& params = signature->params.get<std::vector<type::Type>>();
-            if (params.size() != args.size()) {
-                signatureContext.error(
-                    "Expected " + std::to_string(params.size()) +
-                    " arguments, but found " + std::to_string(args.size()) + " instead."
-                );
-                continue;
-            }
-
-            for (std::size_t i = 0; i < args.size(); i++) {
-                const std::unique_ptr<Expression>& arg = args[i];
-                checkSubtype(params.at(i), arg->getType(), ParsingContext(signatureContext, i + 1));
-            }
-        } else if (signature->params.is<VarargsType>()) {
-            const type::Type& paramType = signature->params.get<VarargsType>().type;
-            for (std::size_t i = 0; i < args.size(); i++) {
-                const std::unique_ptr<Expression>& arg = args[i];
-                checkSubtype(paramType, arg->getType(), ParsingContext(signatureContext, i + 1));
-            }
-        }
-        
-        if (currentSignatureErrors.size() == 0) {
-            return ParseResult(signature->makeExpression(name, std::move(args)));
-        }
-    }
-    
-    if (definition.size() == 1) {
-        ctx.errors.insert(ctx.errors.end(), currentSignatureErrors.begin(), currentSignatureErrors.end());
-    } else {
-        std::string signatures;
-        for (const auto& signature : definition) {
-            signatures += (signatures.size() > 0 ? " | " : "");
-            signature->params.match(
-                [&](const VarargsType& varargs) {
-                    signatures += "(" + toString(varargs.type) + ")";
-                },
-                [&](const std::vector<type::Type>& params) {
-                    signatures += "(";
-                    bool first = true;
-                    for (const type::Type& param : params) {
-                        if (!first) signatures += ", ";
-                        signatures += toString(param);
-                        first = false;
-                    }
-                    signatures += ")";
-                }
-            );
-            
-        }
-        std::string actualTypes;
-        for (const auto& arg : args) {
-            if (actualTypes.size() > 0) {
-                actualTypes += ", ";
-            }
-            actualTypes += toString(arg->getType());
-        }
-        ctx.error("Expected arguments of type " + signatures + ", but found (" + actualTypes + ") instead.");
-    }
-    
-    return ParseResult();
-}
-
 using Definition = CompoundExpressionRegistry::Definition;
 
 // Helper for creating expression Definition from one or more lambdas
@@ -617,6 +539,91 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
         return s;
     })
 );
+
+
+ParseResult createCompoundExpression(const std::string& name,
+                                     std::vector<std::unique_ptr<Expression>> args,
+                                     ParsingContext ctx)
+{
+    return createCompoundExpression(name, CompoundExpressionRegistry::definitions.at(name), std::move(args), ctx);
+}
+
+ParseResult createCompoundExpression(const std::string& name,
+                                     const Definition& definition,
+                                     std::vector<std::unique_ptr<Expression>> args,
+                                     ParsingContext ctx)
+{
+    std::vector<ParsingError> currentSignatureErrors;
+
+    ParsingContext signatureContext(currentSignatureErrors);
+    signatureContext.key = ctx.key;
+    
+    for (const std::unique_ptr<detail::SignatureBase>& signature : definition) {
+        currentSignatureErrors.clear();
+        
+        
+        if (signature->params.is<std::vector<type::Type>>()) {
+            const std::vector<type::Type>& params = signature->params.get<std::vector<type::Type>>();
+            if (params.size() != args.size()) {
+                signatureContext.error(
+                    "Expected " + std::to_string(params.size()) +
+                    " arguments, but found " + std::to_string(args.size()) + " instead."
+                );
+                continue;
+            }
+
+            for (std::size_t i = 0; i < args.size(); i++) {
+                const std::unique_ptr<Expression>& arg = args[i];
+                checkSubtype(params.at(i), arg->getType(), ParsingContext(signatureContext, i + 1));
+            }
+        } else if (signature->params.is<VarargsType>()) {
+            const type::Type& paramType = signature->params.get<VarargsType>().type;
+            for (std::size_t i = 0; i < args.size(); i++) {
+                const std::unique_ptr<Expression>& arg = args[i];
+                checkSubtype(paramType, arg->getType(), ParsingContext(signatureContext, i + 1));
+            }
+        }
+        
+        if (currentSignatureErrors.size() == 0) {
+            return ParseResult(signature->makeExpression(name, std::move(args)));
+        }
+    }
+    
+    if (definition.size() == 1) {
+        ctx.errors.insert(ctx.errors.end(), currentSignatureErrors.begin(), currentSignatureErrors.end());
+    } else {
+        std::string signatures;
+        for (const auto& signature : definition) {
+            signatures += (signatures.size() > 0 ? " | " : "");
+            signature->params.match(
+                [&](const VarargsType& varargs) {
+                    signatures += "(" + toString(varargs.type) + ")";
+                },
+                [&](const std::vector<type::Type>& params) {
+                    signatures += "(";
+                    bool first = true;
+                    for (const type::Type& param : params) {
+                        if (!first) signatures += ", ";
+                        signatures += toString(param);
+                        first = false;
+                    }
+                    signatures += ")";
+                }
+            );
+            
+        }
+        std::string actualTypes;
+        for (const auto& arg : args) {
+            if (actualTypes.size() > 0) {
+                actualTypes += ", ";
+            }
+            actualTypes += toString(arg->getType());
+        }
+        ctx.error("Expected arguments of type " + signatures + ", but found (" + actualTypes + ") instead.");
+    }
+    
+    return ParseResult();
+}
 
 } // namespace expression
 } // namespace style

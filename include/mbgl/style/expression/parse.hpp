@@ -101,7 +101,7 @@ ParseResult parseExpression(const V& value, ParsingContext context)
         auto wrapForType = [&](const std::string& wrapper, std::unique_ptr<Expression> expression) {
             std::vector<std::unique_ptr<Expression>> args;
             args.push_back(std::move(expression));
-            return CompoundExpressionRegistry::create(wrapper, std::move(args), context);
+            return createCompoundExpression(wrapper, std::move(args), context);
         };
         
         const type::Type actual = (*parsed)->getType();

@@ -115,22 +115,16 @@ private:
 struct CompoundExpressionRegistry {
     using Definition = std::vector<std::unique_ptr<detail::SignatureBase>>;
     static std::unordered_map<std::string, Definition> definitions;
-    
-    static ParseResult create(const std::string& name,
-                              const Definition& definition,
-                              std::vector<std::unique_ptr<Expression>> args,
-                              ParsingContext ctx);
-    
-        
-    static ParseResult create(const std::string& name,
-                              std::vector<std::unique_ptr<Expression>> args,
-                              ParsingContext ctx)
-    {
-        return create(name, definitions.at(name), std::move(args), ctx);
-    }
-
 };
 
+ParseResult createCompoundExpression(const std::string& name,
+                                     const CompoundExpressionRegistry::Definition& definition,
+                                     std::vector<std::unique_ptr<Expression>> args,
+                                     ParsingContext ctx);
+    
+ParseResult createCompoundExpression(const std::string& name,
+                                     std::vector<std::unique_ptr<Expression>> args,
+                                     ParsingContext ctx);
 
 } // namespace expression
 } // namespace style

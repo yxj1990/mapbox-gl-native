@@ -47,7 +47,7 @@ struct ParseCompoundExpression {
             }
             args.push_back(std::move(*parsed));
         }
-        return CompoundExpressionRegistry::create(name, definition, std::move(args), ctx);
+        return createCompoundExpression(name, definition, std::move(args), ctx);
     }
 };
 
