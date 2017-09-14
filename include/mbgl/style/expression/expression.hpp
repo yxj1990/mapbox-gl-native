@@ -80,6 +80,25 @@ struct EvaluationResult : public Result<Value> {
     {}
 };
 
+/*
+    Expression is an abstract class that serves as an interface and base class
+    for particular expression implementations.
+
+    CompoundExpression implements the majority of expressions in the spec by
+    inferring the argument and output from a simple function (const T0& arg0,
+    const T1& arg1, ...) -> Result<U> where T0, T1, ..., U are member types of
+    mbgl::style::expression::Value.
+    
+    The other Expression subclasses (Let, Curve, Match, etc.) exist in order to
+    implement expressions that need specialized parsing, type checking, or
+    evaluation logic that can't be handled by CompoundExpression's inference
+    mechanism.
+    
+    Each Expression subclass has an accompanying 
+    template <class V> ParseResult ParseXxxx::parse(const V&, ParsingContext),
+    found in style/expression/parse/xxxx.hpp, which handles parsing a style-spec
+    JSON representation of the expression.
+*/
 class Expression {
 public:
     Expression(type::Type type_) : type(std::move(type_)) {}

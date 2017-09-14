@@ -19,10 +19,29 @@ namespace mbgl {
 namespace style {
 namespace expression {
 
+/*
+    CompoundExpression provides a mechanism for implementing an expression
+    simply by providing a list of pure functions of the form
+    (const T0& arg0, const T1& arg1, ...) -> Result<U> where T0, T1, ..., U are
+    member types of mbgl::style::expression::Value.
+ 
+    The majority of expressions specified in the style-spec are implemented in
+    this fashion (see compound_expression.cpp).
+*/
+
+
+/*
+    Represents the parameter list for an expression that takes an arbitrary
+    number of arguments (of a specific type).
+*/
 struct VarargsType { type::Type type; };
 template <typename T>
 struct Varargs : std::vector<T> { using std::vector<T>::vector; };
 
+namespace detail {
+// Base class for the Signature<Fn> structs that are used to determine the
+// each CompoundExpression definition's type::Type data from the type of its
+// "evaluate" function.
 struct SignatureBase {
     SignatureBase(type::Type result_, variant<std::vector<type::Type>, VarargsType> params_) :
         result(std::move(result_)),
@@ -33,11 +52,17 @@ struct SignatureBase {
     type::Type result;
     variant<std::vector<type::Type>, VarargsType> params;
 };
+} // namespace detail
 
 
+/*
+    Common base class for CompoundExpression<Signature> instances.  Used to
+    allow downcasting (and access to things like name & parameter list) during
+    an Expression tree traversal.
+*/
 class CompoundExpressionBase : public Expression {
 public:
-    CompoundExpressionBase(std::string name_, const SignatureBase& signature) :
+    CompoundExpressionBase(std::string name_, const detail::SignatureBase& signature) :
         Expression(signature.result),
         name(std::move(name_)),
         params(signature.params)
@@ -85,9 +110,12 @@ private:
     typename Signature::Args args;
 };
 
-
+/*
+    Holds the map of expression name => implementation (which is just one or
+    more evaluation functions, each wrapped in a Signature struct).
+*/
 struct CompoundExpressionRegistry {
-    using Definition = std::vector<std::unique_ptr<SignatureBase>>;
+    using Definition = std::vector<std::unique_ptr<detail::SignatureBase>>;
     static std::unordered_map<std::string, Definition> definitions;
     
     static ParseResult create(const std::string& name,

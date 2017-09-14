@@ -6,6 +6,8 @@ namespace style {
 namespace expression {
 
 
+namespace detail {
+
 template <typename T>
 std::decay_t<T> get(const Value& value);
 
@@ -16,13 +18,104 @@ template <typename T> std::decay_t<T> get(const Value& value) {
     return value.get<std::decay_t<T>>();
 }
 
-
+/*
+    The Signature<Fn> structs are wrappers around an "evaluate()" function whose
+    purpose is to extract the necessary Type data from the evaluate function's
+    type.  There are three key (partial) specializations:
+    
+    Signature<R (Params...)>:
+    Wraps a simple evaluate function (const T0&, const T1&, ...) -> Result<U>
+ 
+    Signature<R (const Varargs<T>&)>:
+    Wraps an evaluate function that takes an arbitrary number of arguments (via
+    a Varargs<T>, which is just an alias for std::vector).
+ 
+    Signature<R (const EvaluationParameters&, Params...)>:
+    Wraps an evaluate function that needs to access the expression evaluation
+    parameters in addition to its subexpressions, i.e.,
+    (const EvaluationParams& const T0&, const T1&, ...) -> Result<U>.  Needed
+    for expressions like ["zoom"], ["get", key], etc.
+    
+    In each of the above evaluate signatures, T0, T1, etc. are the types of
+    the successfully evaluated subexpressions.
+*/
 template <class, class Enable = void>
 struct Signature;
 
-// Signature from a zoom- or property-dependent evaluation function:
-// (const EvaluationParameters&, T1, T2, ...) => Result<U>,
-// where T1, T2, etc. are the types of successfully-evaluated subexpressions.
+// Simple evaluate function (const T0&, const T1&, ...) -> Result<U>
+template <class R, class... Params>
+struct Signature<R (Params...)> : SignatureBase {
+    using Args = std::array<std::unique_ptr<Expression>, sizeof...(Params)>;
+    
+    Signature(R (*evaluate_)(Params...)) :
+        SignatureBase(
+            valueTypeToExpressionType<std::decay_t<typename R::Value>>(),
+            std::vector<type::Type> {valueTypeToExpressionType<std::decay_t<Params>>()...}
+        ),
+        evaluate(evaluate_)
+    {}
+    
+    EvaluationResult apply(const EvaluationParameters& evaluationParameters, const Args& args) const {
+        return applyImpl(evaluationParameters, args, std::index_sequence_for<Params...>{});
+    }
+    
+    std::unique_ptr<Expression> makeExpression(const std::string& name,
+                                               std::vector<std::unique_ptr<Expression>> args) const override {
+        typename Signature::Args argsArray;
+        std::copy_n(std::make_move_iterator(args.begin()), sizeof...(Params), argsArray.begin());
+        return std::make_unique<CompoundExpression<Signature>>(name, *this, std::move(argsArray));
+    }
+
+    R (*evaluate)(Params...);
+private:
+    template <std::size_t ...I>
+    EvaluationResult applyImpl(const EvaluationParameters& evaluationParameters, const Args& args, std::index_sequence<I...>) const {
+        const std::array<EvaluationResult, sizeof...(I)> evaluated = {{std::get<I>(args)->evaluate(evaluationParameters)...}};
+        for (const auto& arg : evaluated) {
+            if(!arg) return arg.error();
+        }
+        // TODO: assert correct runtime type of each arg value
+        const R value = evaluate(get<Params>(*(evaluated[I]))...);
+        if (!value) return value.error();
+        return *value;
+    }
+};
+
+// Varargs evaluate function (const Varargs<T>&) -> Result<U>
+template <class R, typename T>
+struct Signature<R (const Varargs<T>&)> : SignatureBase {
+    using Args = std::vector<std::unique_ptr<Expression>>;
+    
+    Signature(R (*evaluate_)(const Varargs<T>&)) :
+        SignatureBase(
+            valueTypeToExpressionType<std::decay_t<typename R::Value>>(),
+            VarargsType { valueTypeToExpressionType<T>() }
+        ),
+        evaluate(evaluate_)
+    {}
+    
+    std::unique_ptr<Expression> makeExpression(const std::string& name,
+                                               std::vector<std::unique_ptr<Expression>> args) const override  {
+        return std::make_unique<CompoundExpression<Signature>>(name, *this, std::move(args));
+    };
+    
+    EvaluationResult apply(const EvaluationParameters& evaluationParameters, const Args& args) const {
+        Varargs<T> evaluated;
+        for (const auto& arg : args) {
+            const Result<T> evaluatedArg = arg->evaluate<T>(evaluationParameters);
+            if(!evaluatedArg) return evaluatedArg.error();
+            evaluated.push_back(*evaluatedArg);
+        }
+        const R value = evaluate(evaluated);
+        if (!value) return value.error();
+        return *value;
+    }
+    
+    R (*evaluate)(const Varargs<T>&);
+};
+
+// Evaluate function needing parameter access,
+// (const EvaluationParams&, const T0&, const T1&, ...) -> Result<U>
 template <class R, class... Params>
 struct Signature<R (const EvaluationParameters&, Params...)> : SignatureBase {
     using Args = std::array<std::unique_ptr<Expression>, sizeof...(Params)>;
@@ -62,81 +155,7 @@ private:
     R (*evaluate)(const EvaluationParameters&, Params...);
 };
 
-// Signature from varargs evaluation function: (Varargs<T>) => Result<U>,
-// where T is the type of each successfully-evaluated subexpression (Varargs<T> being
-// an alias for vector<T>).
-template <class R, typename T>
-struct Signature<R (const Varargs<T>&)> : SignatureBase {
-    using Args = std::vector<std::unique_ptr<Expression>>;
-    
-    Signature(R (*evaluate_)(const Varargs<T>&)) :
-        SignatureBase(
-            valueTypeToExpressionType<std::decay_t<typename R::Value>>(),
-            VarargsType { valueTypeToExpressionType<T>() }
-        ),
-        evaluate(evaluate_)
-    {}
-    
-    std::unique_ptr<Expression> makeExpression(const std::string& name,
-                                               std::vector<std::unique_ptr<Expression>> args) const override  {
-        return std::make_unique<CompoundExpression<Signature>>(name, *this, std::move(args));
-    };
-    
-    EvaluationResult apply(const EvaluationParameters& evaluationParameters, const Args& args) const {
-        Varargs<T> evaluated;
-        for (const auto& arg : args) {
-            const Result<T> evaluatedArg = arg->evaluate<T>(evaluationParameters);
-            if(!evaluatedArg) return evaluatedArg.error();
-            evaluated.push_back(*evaluatedArg);
-        }
-        const R value = evaluate(evaluated);
-        if (!value) return value.error();
-        return *value;
-    }
-    
-    R (*evaluate)(const Varargs<T>&);
-};
-
-// Signature from "pure" evaluation function: (T1, T2, ...) => Result<U>,
-// where T1, T2, etc. are the types of successfully-evaluated subexpressions.
-template <class R, class... Params>
-struct Signature<R (Params...)> : SignatureBase {
-    using Args = std::array<std::unique_ptr<Expression>, sizeof...(Params)>;
-    
-    Signature(R (*evaluate_)(Params...)) :
-        SignatureBase(
-            valueTypeToExpressionType<std::decay_t<typename R::Value>>(),
-            std::vector<type::Type> {valueTypeToExpressionType<std::decay_t<Params>>()...}
-        ),
-        evaluate(evaluate_)
-    {}
-    
-    EvaluationResult apply(const EvaluationParameters& evaluationParameters, const Args& args) const {
-        return applyImpl(evaluationParameters, args, std::index_sequence_for<Params...>{});
-    }
-    
-    std::unique_ptr<Expression> makeExpression(const std::string& name,
-                                               std::vector<std::unique_ptr<Expression>> args) const override {
-        typename Signature::Args argsArray;
-        std::copy_n(std::make_move_iterator(args.begin()), sizeof...(Params), argsArray.begin());
-        return std::make_unique<CompoundExpression<Signature>>(name, *this, std::move(argsArray));
-    }
-
-    R (*evaluate)(Params...);
-private:
-    template <std::size_t ...I>
-    EvaluationResult applyImpl(const EvaluationParameters& evaluationParameters, const Args& args, std::index_sequence<I...>) const {
-        const std::array<EvaluationResult, sizeof...(I)> evaluated = {{std::get<I>(args)->evaluate(evaluationParameters)...}};
-        for (const auto& arg : evaluated) {
-            if(!arg) return arg.error();
-        }
-        // TODO: assert correct runtime type of each arg value
-        const R value = evaluate(get<Params>(*(evaluated[I]))...);
-        if (!value) return value.error();
-        return *value;
-    }
-};
-
+// Machinery to pull out function types from class methods, lambdas, etc.
 template <class R, class... Params>
 struct Signature<R (*)(Params...)>
     : Signature<R (Params...)>
@@ -157,6 +176,8 @@ struct Signature<Lambda, std::enable_if_t<std::is_class<Lambda>::value>>
     : Signature<decltype(&Lambda::operator())>
 { using Signature<decltype(&Lambda::operator())>::Signature; };
 
+} // namespace detail
+
 
 ParseResult CompoundExpressionRegistry::create(const std::string& name,
                               const Definition& definition,
@@ -168,7 +189,7 @@ ParseResult CompoundExpressionRegistry::create(const std::string& name,
     ParsingContext signatureContext(currentSignatureErrors);
     signatureContext.key = ctx.key;
     
-    for (const auto& signature : definition) {
+    for (const std::unique_ptr<detail::SignatureBase>& signature : definition) {
         currentSignatureErrors.clear();
         
         
@@ -241,7 +262,7 @@ using Definition = CompoundExpressionRegistry::Definition;
 template <typename ...Evals, typename std::enable_if_t<sizeof...(Evals) != 0, int> = 0>
 static std::pair<std::string, Definition> define(std::string name, Evals... evalFunctions) {
     Definition definition;
-    expand_pack(definition.push_back(std::make_unique<Signature<Evals>>(evalFunctions)));
+    expand_pack(definition.push_back(std::make_unique<detail::Signature<Evals>>(evalFunctions)));
     const type::Type& t0 = definition[0]->result;
     for (const auto& signature : definition) {
         assert(t0 == signature->result);
