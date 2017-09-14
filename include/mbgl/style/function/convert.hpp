@@ -49,8 +49,6 @@ private:
 // Create expressions representing 'classic' (i.e. stop-based) style functions
 
 struct Convert {
-    // TODO: Organize. Where should each of these actually go?
-
     template <typename T>
     static std::unique_ptr<Literal> makeLiteral(const T& value) {
         return std::make_unique<Literal>(Value(toExpressionValue(value)));

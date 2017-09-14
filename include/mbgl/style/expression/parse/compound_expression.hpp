@@ -15,16 +15,14 @@ namespace expression {
 
 struct ParseCompoundExpression {
     template <class V>
-    static ParseResult parse(const V& value, ParsingContext ctx) {
+    static ParseResult parse(const std::string name, const V& value, ParsingContext ctx) {
         using namespace mbgl::style::conversion;
         assert(isArray(value) && arrayLength(value) > 0);
-        const optional<std::string> name = toString(arrayMember(value, 0));
-        assert(name);
         
-        auto it = CompoundExpressionRegistry::definitions.find(*name);
+        auto it = CompoundExpressionRegistry::definitions.find(name);
         if (it == CompoundExpressionRegistry::definitions.end()) {
             ctx.error(
-                 R"(Unknown expression ")" + *name + R"(". If you wanted a literal array, use ["literal", [...]].)",
+                 R"(Unknown expression ")" + name + R"(". If you wanted a literal array, use ["literal", [...]].)",
                 0
             );
             return ParseResult();
@@ -49,7 +47,7 @@ struct ParseCompoundExpression {
             }
             args.push_back(std::move(*parsed));
         }
-        return CompoundExpressionRegistry::create(*name, definition, std::move(args), ctx);
+        return CompoundExpressionRegistry::create(name, definition, std::move(args), ctx);
     }
 };
 

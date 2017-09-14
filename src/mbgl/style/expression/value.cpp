@@ -87,12 +87,10 @@ struct FromMBGLValue {
     Value operator()(const mbgl::NullValue) { return Null; }
     Value operator()(const double& v) { return v; }
     Value operator()(const uint64_t& v) {
-        return v > std::numeric_limits<double>::max() ?
-            std::numeric_limits<double>::infinity() : v;
+        return static_cast<double>(v);
     }
     Value operator()(const int64_t& v) {
-        return v > std::numeric_limits<double>::max() ?
-            std::numeric_limits<double>::infinity() : v;
+        return static_cast<double>(v);
     }
 };
 

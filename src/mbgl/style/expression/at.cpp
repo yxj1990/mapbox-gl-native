@@ -20,7 +20,7 @@ EvaluationResult At::evaluate(const EvaluationParameters& params) const {
             " > " + std::to_string(inputArray->size()) + "."
         };
     }
-    if (*i != ceilf(*i)) {
+    if (*i != std::floor(*i)) {
         return EvaluationError {
             "Array index must be an integer, but found " + stringify(*i) + " instead."
         };

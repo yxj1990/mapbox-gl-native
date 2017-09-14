@@ -84,7 +84,7 @@ ParseResult parseExpression(const V& value, ParsingContext context)
         } else if (*op == "contains") {
             parsed = ParseIn::parse(value, context);
         } else {
-            parsed = ParseCompoundExpression::parse(value, context);
+            parsed = ParseCompoundExpression::parse(*op, value, context);
         }
     } else {
         if (isObject(value)) {

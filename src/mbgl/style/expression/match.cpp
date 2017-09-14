@@ -34,7 +34,7 @@ template<> EvaluationResult Match<int64_t>::evaluate(const EvaluationParameters&
         return inputValue.error();
     }
     
-    int64_t rounded = ceilf(*inputValue);
+    int64_t rounded = std::floor(*inputValue);
     if (*inputValue == rounded) {
         auto it = branches.find(rounded);
         if (it != branches.end()) {

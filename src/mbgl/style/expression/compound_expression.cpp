@@ -1,5 +1,6 @@
 #include <mbgl/style/expression/compound_expression.hpp>
 #include <mbgl/tile/geometry_tile_data.hpp>
+#include <mbgl/util/ignore.hpp>
 
 namespace mbgl {
 namespace style {
@@ -258,11 +259,11 @@ ParseResult CompoundExpressionRegistry::create(const std::string& name,
 
 using Definition = CompoundExpressionRegistry::Definition;
 
-// Helper for creating expression Definigion from one or more lambdas
+// Helper for creating expression Definition from one or more lambdas
 template <typename ...Evals, typename std::enable_if_t<sizeof...(Evals) != 0, int> = 0>
 static std::pair<std::string, Definition> define(std::string name, Evals... evalFunctions) {
     Definition definition;
-    expand_pack(definition.push_back(std::make_unique<detail::Signature<Evals>>(evalFunctions)));
+    util::ignore((definition.push_back(std::make_unique<detail::Signature<Evals>>(evalFunctions)), 0)...);
     const type::Type& t0 = definition[0]->result;
     for (const auto& signature : definition) {
         assert(t0 == signature->result);
@@ -319,7 +320,7 @@ Result<bool> notEqual(const T& lhs, const T& rhs) { return lhs != rhs; }
 template <typename ...Entries>
 std::unordered_map<std::string, CompoundExpressionRegistry::Definition> initializeDefinitions(Entries... entries) {
     std::unordered_map<std::string, CompoundExpressionRegistry::Definition> definitions;
-    expand_pack(definitions.insert(std::move(entries)));
+    util::ignore((definitions.insert(std::move(entries)), 0)...);
     return definitions;
 }
 

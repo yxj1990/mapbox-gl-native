@@ -46,7 +46,7 @@ struct ParseArrayAssertion {
         
         if (length > 3) {
             auto n = toNumber(arrayMember(value, 2));
-            if (!n || *n != ceilf(*n)) {
+            if (!n || *n != std::floor(*n)) {
                 ctx.error(
                     R"(The length argument to "array" must be a positive integer literal.)",
                     2

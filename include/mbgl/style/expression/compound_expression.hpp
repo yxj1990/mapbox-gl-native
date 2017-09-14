@@ -13,8 +13,6 @@
 #include <mbgl/style/expression/parsing_context.hpp>
 #include <mbgl/style/conversion.hpp>
 
-#define expand_pack(...) (void) std::initializer_list<int>{((void)(__VA_ARGS__), 0)...};
-
 namespace mbgl {
 namespace style {
 namespace expression {

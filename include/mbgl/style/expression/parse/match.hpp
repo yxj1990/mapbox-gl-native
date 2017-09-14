@@ -137,7 +137,7 @@ private:
                 [&] (double n) {
                     if (!Value::isSafeInteger(n)) {
                         ctx.error("Branch labels must be integers no larger than " + std::to_string(Value::maxSafeInteger()) + ".");
-                    } else if (n != ceilf(n)) {
+                    } else if (n != std::floor(n)) {
                         ctx.error("Numeric branch labels must be integer values.");
                     } else {
                         type = {type::Number};
