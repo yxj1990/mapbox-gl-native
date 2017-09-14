@@ -1,5 +1,6 @@
-#include  <mbgl/style/expression/value.hpp>
-#include <sstream>
+#include <rapidjson/writer.h>
+#include <rapidjson/stringbuffer.h>
+#include <mbgl/style/expression/value.hpp>
 
 namespace mbgl {
 namespace style {
@@ -35,34 +36,36 @@ type::Type typeOf(const Value& value) {
     );
 }
 
-std::string stringify(const Value& value) {
-    return value.match(
-        [&] (const NullValue&) { return std::string("null"); },
-        [&] (bool b) { return std::string(b ? "true" : "false"); },
-        [&] (double f) {
-            std::stringstream ss;
-            ss << f;
-            return ss.str();
-        },
-        [&] (const std::string& s) { return "\"" + s + "\""; },
-        [&] (const mbgl::Color& c) { return c.stringify(); },
+void writeJSON(rapidjson::Writer<rapidjson::StringBuffer>& writer, const Value& value) {
+    value.match(
+        [&] (const NullValue&) { writer.Null(); },
+        [&] (bool b) { writer.Bool(b); },
+        [&] (double f) { f == std::floor(f) ? writer.Int(f) : writer.Double(f); },
+        [&] (const std::string& s) { writer.String(s); },
+        [&] (const mbgl::Color& c) { writer.String(c.stringify()); },
         [&] (const std::vector<Value>& arr) {
-            std::string result = "[";
+            writer.StartArray();
             for(const auto& item : arr) {
-                if (result.size() > 1) result += ",";
-                result += stringify(item);
+                writeJSON(writer, item);
             }
-            return result + "]";
+            writer.EndArray();
         },
         [&] (const std::unordered_map<std::string, Value>& obj) {
-            std::string result = "{";
+            writer.StartObject();
             for(const auto& entry : obj) {
-                if (result.size() > 1) result += ",";
-                result += stringify(entry.first) + ":" + stringify(entry.second);
+                writer.String(entry.first);
+                writeJSON(writer, entry.second);
             }
-            return result + "}";
+            writer.EndObject();
         }
     );
+}
+
+std::string stringify(const Value& value) {
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    writeJSON(writer, value);
+    return buffer.GetString();
 }
 
 struct FromMBGLValue {
