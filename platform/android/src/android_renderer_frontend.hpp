@@ -1,7 +1,4 @@
-
 #pragma once
-
-#include "android_gl_thread.hpp"
 
 #include <mbgl/actor/actor.hpp>
 #include <mbgl/annotation/annotation.hpp>
@@ -17,6 +14,8 @@
 #include <vector>
 #include <string>
 
+#include "map_renderer.hpp"
+
 namespace mbgl {
 
 class FileSource;
@@ -30,15 +29,8 @@ class AndroidRendererBackend;
 
 class AndroidRendererFrontend : public RendererFrontend {
 public:
-    using RequestRenderCallback = std::function<void ()>;
-    using RequestProcessingCallback = std::function<void ()>;
 
-    AndroidRendererFrontend(float pixelRatio,
-                            mbgl::FileSource&,
-                            mbgl::Scheduler&,
-                            std::string programCacheDir,
-                            RequestRenderCallback,
-                            RequestProcessingCallback);
+    AndroidRendererFrontend(MapRenderer&);
     ~AndroidRendererFrontend() override;
 
     void reset() override;
@@ -46,18 +38,11 @@ public:
 
     void update(std::shared_ptr<UpdateParameters>) override;
 
-    // Called from OpenGL Thread
-    void render();
-    void process();
-
     // Feature querying
     std::vector<Feature> queryRenderedFeatures(const ScreenCoordinate&, const RenderedQueryOptions&) const;
     std::vector<Feature> queryRenderedFeatures(const ScreenBox&, const RenderedQueryOptions&) const;
     std::vector<Feature> querySourceFeatures(const std::string& sourceID, const SourceQueryOptions&) const;
     AnnotationIDs queryPointAnnotations(const ScreenBox& box) const;
-
-    // RenderBackend proxy - Called from OpenGL Thread
-    void resizeFramebuffer(int width, int height);
 
     // Memory
     void onLowMemory();
@@ -67,19 +52,14 @@ public:
     void requestSnapshot(SnapshotCallback);
 
 private:
-    std::unique_ptr<AndroidRendererBackend> backend;
-    std::unique_ptr<AndroidGLThread> glThread;
     std::unique_ptr<RendererObserver> rendererObserver;
-
-    std::mutex updateMutex;
-    std::shared_ptr<UpdateParameters> updateParameters;
-
+    MapRenderer& mapRenderer;
 
     util::AsyncTask asyncInvalidate;
 
     util::RunLoop* mapRunLoop;
 
-    bool framebufferSizeChanged = true;
+    // TODO
     std::unique_ptr<SnapshotCallback> snapshotCallback;
 };
 

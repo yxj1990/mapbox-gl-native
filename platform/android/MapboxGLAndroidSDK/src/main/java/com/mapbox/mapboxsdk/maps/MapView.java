@@ -28,7 +28,7 @@ import com.mapbox.mapboxsdk.annotations.MarkerViewManager;
 import com.mapbox.mapboxsdk.constants.MapboxConstants;
 import com.mapbox.mapboxsdk.constants.Style;
 import com.mapbox.mapboxsdk.egl.EGLConfigChooser;
-import com.mapbox.mapboxsdk.maps.renderer.GlSurfaceViewRenderThread;
+import com.mapbox.mapboxsdk.maps.renderer.MapRenderer;
 import com.mapbox.mapboxsdk.maps.widgets.CompassView;
 import com.mapbox.mapboxsdk.maps.widgets.MyLocationView;
 import com.mapbox.mapboxsdk.maps.widgets.MyLocationViewSettings;
@@ -237,10 +237,11 @@ public class MapView extends FrameLayout {
     glSurfaceView.setZOrderMediaOverlay(mapboxMapOptions.getRenderSurfaceOnTop());
     glSurfaceView.setEGLContextClientVersion(2);
     glSurfaceView.setEGLConfigChooser(new EGLConfigChooser());
-    glSurfaceView.setRenderer(new GLSurfaceView.Renderer() {
 
+    MapRenderer mapRenderer = new MapRenderer(getContext(), glSurfaceView) {
       @Override
       public void onSurfaceCreated(GL10 gl, EGLConfig config) {
+        // TODO: Initialise only once?
         MapView.this.post(new Runnable() {
           @Override
           public void run() {
@@ -249,23 +250,16 @@ public class MapView extends FrameLayout {
           }
         });
 
-        nativeMapView.onSurfaceCreated(gl, config);
+        super.onSurfaceCreated(gl, config);
       }
+    };
 
-      @Override
-      public void onSurfaceChanged(GL10 gl, int width, int height) {
-        nativeMapView.onSurfaceChanged(gl, width, height);
-      }
-
-      @Override
-      public void onDrawFrame(GL10 gl) {
-        nativeMapView.onDrawFrame(gl);
-      }
-    });
+    glSurfaceView.setRenderer(mapRenderer);
     glSurfaceView.setRenderMode(RENDERMODE_WHEN_DIRTY);
     glSurfaceView.setVisibility(View.VISIBLE);
 
-    nativeMapView.setRenderThread(new GlSurfaceViewRenderThread(glSurfaceView));
+    nativeMapView = new NativeMapView(this, mapRenderer);
+    nativeMapView.resizeView(getMeasuredWidth(), getMeasuredHeight());
   }
 
   /**
@@ -478,9 +472,7 @@ public class MapView extends FrameLayout {
       return;
     }
 
-    if (nativeMapView == null) {
-      nativeMapView = new NativeMapView(this);
-    } else if (mapZoomButtonController != null) {
+    if (mapZoomButtonController != null) {
       mapZoomButtonController.setVisible(visibility == View.VISIBLE);
     }
   }
