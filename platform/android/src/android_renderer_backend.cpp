@@ -54,7 +54,7 @@ void AndroidRendererBackend::updateAssumedState() {
 }
 
 
-void AndroidRendererBackend::abandonContext() {
+void AndroidRendererBackend::markContextLost() {
     if (context) {
         context->setCleanupOnDestruction(false);
     }

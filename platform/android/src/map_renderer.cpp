@@ -110,11 +110,10 @@ void MapRenderer::onSurfaceCreated(JNIEnv&) {
     std::lock_guard<std::mutex> lock(initialisationMutex);
 
 
-    if (backend) {
-        // The android system will have already destroyed the underlying
-        // GL resources and an attempt to clean them up will fail
-        backend->abandonContext();
-    }
+    // The android system will have already destroyed the underlying
+    // GL resources if this is not the first intialization and an
+    // attempt to clean them up will fail
+    if (backend) backend->markContextLost();
 
     // Reset in opposite order
     renderer.reset();

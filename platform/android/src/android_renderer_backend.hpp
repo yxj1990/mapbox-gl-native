@@ -14,7 +14,7 @@ public:
 
     // Ensures the current context is not
     // cleaned up when destroyed
-    void abandonContext();
+    void markContextLost();
 
     void updateViewPort();
 
