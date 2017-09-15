@@ -78,7 +78,6 @@ public class MapRenderer implements GLSurfaceView.Renderer, MapRendererScheduler
    */
   @Override
   public void requestRender() {
-    Timber.i("requestRender");
     glSurfaceView.requestRender();
   }
 
@@ -91,7 +90,6 @@ public class MapRenderer implements GLSurfaceView.Renderer, MapRendererScheduler
    */
   @Override
   public void queueEvent(Runnable runnable) {
-    Timber.i("queueEvent");
     glSurfaceView.queueEvent(runnable);
   }
 

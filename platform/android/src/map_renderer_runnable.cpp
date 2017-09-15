@@ -15,9 +15,7 @@ MapRendererRunnable::MapRendererRunnable(jni::JNIEnv& env, std::weak_ptr<Mailbox
     javaPeer = SeizeGenericWeakRef(env, jni::Object<MapRendererRunnable>(jni::NewWeakGlobalRef(env, instance.Get()).release()));
 }
 
-MapRendererRunnable::~MapRendererRunnable() {
-    Log::Info(Event::General, "MapRendererRunnable::~MapRendererRunnable");
-};
+MapRendererRunnable::~MapRendererRunnable() = default;
 
 void MapRendererRunnable::run(jni::JNIEnv&) {
     Mailbox::maybeReceive(mailbox);
