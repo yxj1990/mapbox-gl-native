@@ -9,5 +9,5 @@ public interface MapRendererScheduler {
   void requestRender();
 
   void queueEvent(Runnable runnable);
-  
+
 }

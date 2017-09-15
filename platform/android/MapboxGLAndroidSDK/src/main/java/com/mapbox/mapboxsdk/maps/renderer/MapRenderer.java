@@ -106,7 +106,10 @@ public class MapRenderer implements GLSurfaceView.Renderer, MapRendererScheduler
     this.queueEvent((Runnable) runnable);
   }
 
-  private native void nativeInitialize(MapRenderer self, FileSource fileSource, float pixelRatio, String programCacheDir);
+  private native void nativeInitialize(MapRenderer self,
+                                       FileSource fileSource,
+                                       float pixelRatio,
+                                       String programCacheDir);
 
   @Override
   protected native void finalize() throws Throwable;
