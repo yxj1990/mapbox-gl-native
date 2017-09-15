@@ -241,12 +241,14 @@ public class MapView extends FrameLayout {
     MapRenderer mapRenderer = new MapRenderer(getContext(), glSurfaceView) {
       @Override
       public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-        // TODO: Initialise only once?
         MapView.this.post(new Runnable() {
           @Override
           public void run() {
-            initialiseMap();
-            mapboxMap.onStart();
+            // Initialise only once
+            if (mapboxMap == null) {
+              initialiseMap();
+              mapboxMap.onStart();
+            }
           }
         });
 
