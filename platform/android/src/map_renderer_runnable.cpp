@@ -9,6 +9,7 @@ MapRendererRunnable::MapRendererRunnable(jni::JNIEnv& env, std::weak_ptr<Mailbox
     : mailbox(std::move(mailbox_)) {
 
     // Create the Java peer
+    jni::UniqueLocalFrame frame = jni::PushLocalFrame(env, 5);
     static auto constructor = javaClass.GetConstructor<jlong>(env);
     auto instance = javaClass.New(env, constructor, reinterpret_cast<jlong>(this));
     javaPeer = SeizeGenericWeakRef(env, jni::Object<MapRendererRunnable>(jni::NewWeakGlobalRef(env, instance.Get()).release()));
