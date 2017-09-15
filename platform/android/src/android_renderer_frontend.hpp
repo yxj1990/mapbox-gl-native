@@ -4,7 +4,6 @@
 #include <mbgl/annotation/annotation.hpp>
 #include <mbgl/renderer/renderer_backend.hpp>
 #include <mbgl/renderer/renderer_frontend.hpp>
-#include <mbgl/util/async_task.hpp>
 #include <mbgl/util/geo.hpp>
 #include <mbgl/util/image.hpp>
 #include <mbgl/util/run_loop.hpp>
@@ -54,8 +53,6 @@ public:
 private:
     std::unique_ptr<RendererObserver> rendererObserver;
     MapRenderer& mapRenderer;
-
-    util::AsyncTask asyncInvalidate;
 
     util::RunLoop* mapRunLoop;
 

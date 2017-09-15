@@ -63,9 +63,6 @@ private:
 
 AndroidRendererFrontend::AndroidRendererFrontend(MapRenderer& mapRenderer_)
         : mapRenderer(mapRenderer_)
-        , asyncInvalidate([&]() {
-            mapRenderer.requestRender();
-        })
         , mapRunLoop(util::RunLoop::Get()) {
 }
 
@@ -73,6 +70,7 @@ AndroidRendererFrontend::~AndroidRendererFrontend() = default;
 
 void AndroidRendererFrontend::reset() {
     mapRenderer.reset();
+    rendererObserver.reset();
 }
 
 void AndroidRendererFrontend::setObserver(RendererObserver& observer) {
@@ -83,7 +81,7 @@ void AndroidRendererFrontend::setObserver(RendererObserver& observer) {
 
 void AndroidRendererFrontend::update(std::shared_ptr<UpdateParameters> params) {
     mapRenderer.update(std::move(params));
-    asyncInvalidate.send();
+    mapRenderer.requestRender();
 }
 
 void AndroidRendererFrontend::onLowMemory() {
