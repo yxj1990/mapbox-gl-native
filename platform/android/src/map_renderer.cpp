@@ -17,16 +17,12 @@ namespace android {
 
 MapRenderer::MapRenderer(jni::JNIEnv& _env, jni::Object<MapRenderer> obj,
                          jni::Object<FileSource> _fileSource, jni::jfloat pixelRatio_,
-                         jni::String programCacheDir_) : javaPeer(SeizeGenericWeakRef(_env,
-                                                                                      jni::Object<MapRenderer>(
-                                                                                              jni::NewWeakGlobalRef(
-                                                                                                      _env,
-                                                                                                      obj.Get()).release())))
-                                                         , pixelRatio(pixelRatio_), fileSource(
-                FileSource::getDefaultFileSource(_env, _fileSource)), programCacheDir(
-                jni::Make<std::string>(_env, programCacheDir_)), threadPool(sharedThreadPool())
-                                                         , mailbox(
-                std::make_shared<Mailbox>(*this)) {
+                         jni::String programCacheDir_)
+        : javaPeer(SeizeGenericWeakRef(_env, jni::Object<MapRenderer>(jni::NewWeakGlobalRef(_env, obj.Get()).release()))), pixelRatio(pixelRatio_)
+        , fileSource(FileSource::getDefaultFileSource(_env, _fileSource))
+        , programCacheDir(jni::Make<std::string>(_env, programCacheDir_))
+        , threadPool(sharedThreadPool())
+        , mailbox(std::make_shared<Mailbox>(*this)) {
 }
 
 MapRenderer::~MapRenderer() = default;
