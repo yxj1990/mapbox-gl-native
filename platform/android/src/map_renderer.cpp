@@ -1,7 +1,5 @@
 #include "map_renderer.hpp"
 
-#include <mbgl/actor/actor_ref.hpp>
-#include <mbgl/actor/mailbox.hpp>
 #include <mbgl/renderer/renderer.hpp>
 #include <mbgl/util/shared_thread_pool.hpp>
 
