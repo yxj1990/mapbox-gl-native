@@ -126,18 +126,7 @@ public class MapView extends FrameLayout {
     // add accessibility support
     setContentDescription(context.getString(R.string.mapbox_mapActionDescription));
     setWillNotDraw(false);
-
-    getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
-      @Override
-      public void onGlobalLayout() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-          getViewTreeObserver().removeOnGlobalLayoutListener(this);
-        } else {
-          getViewTreeObserver().removeGlobalOnLayoutListener(this);
-        }
-        initialiseDrawingSurface();
-      }
-    });
+    initialiseDrawingSurface();
   }
 
   private void initialiseMap() {
