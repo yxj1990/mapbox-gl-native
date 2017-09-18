@@ -2,7 +2,6 @@ package com.mapbox.mapboxsdk.maps;
 
 import android.content.Context;
 import android.graphics.PointF;
-import android.os.Build;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.support.annotation.CallSuper;
@@ -17,7 +16,6 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.ZoomButtonsController;
