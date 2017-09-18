@@ -16,49 +16,42 @@ namespace android {
 // Delegate RendererObserver on the given RunLoop
 class ForwardingRendererObserver : public RendererObserver {
 public:
-    ForwardingRendererObserver(util::RunLoop& mapRunLoop_, RendererObserver& delegate_)
-            : mapRunLoop(mapRunLoop_)
-            , delegate(delegate_) {}
+    ForwardingRendererObserver(util::RunLoop& mapRunLoop, RendererObserver& delegate_)
+            : mailbox(std::make_shared<Mailbox>(mapRunLoop))
+            , delegate(delegate_, mailbox) {
+    }
+
+    ~ForwardingRendererObserver() {
+        mailbox->close();
+    }
 
     void onInvalidate() override {
-        mapRunLoop.invoke([&]() {
-            delegate.onInvalidate();
-        });
+        delegate.invoke(&RendererObserver::onInvalidate);
     }
 
     void onResourceError(std::exception_ptr err) override {
-        mapRunLoop.invoke([&, err]() {
-            delegate.onResourceError(err);
-        });
+        delegate.invoke(&RendererObserver::onResourceError, err);
     }
 
     void onWillStartRenderingMap() override {
-        mapRunLoop.invoke([&]() {
-            delegate.onWillStartRenderingMap();
-        });
+        delegate.invoke(&RendererObserver::onWillStartRenderingMap);
     }
 
     void onWillStartRenderingFrame() override {
-        mapRunLoop.invoke([&]() {
-            delegate.onWillStartRenderingFrame();
-        });
+        delegate.invoke(&RendererObserver::onWillStartRenderingFrame);
     }
 
     void onDidFinishRenderingFrame(RenderMode mode, bool repaintNeeded) override {
-        mapRunLoop.invoke([&, mode, repaintNeeded]() {
-            delegate.onDidFinishRenderingFrame(mode, repaintNeeded);
-        });
+        delegate.invoke(&RendererObserver::onDidFinishRenderingFrame, mode, repaintNeeded);
     }
 
     void onDidFinishRenderingMap() override {
-        mapRunLoop.invoke([&]() {
-            delegate.onDidFinishRenderingMap();
-        });
+        delegate.invoke(&RendererObserver::onDidFinishRenderingMap);
     }
 
 private:
-    util::RunLoop& mapRunLoop;
-    RendererObserver& delegate;
+    std::shared_ptr<Mailbox> mailbox;
+    ActorRef<RendererObserver> delegate;
 };
 
 AndroidRendererFrontend::AndroidRendererFrontend(MapRenderer& mapRenderer_)
