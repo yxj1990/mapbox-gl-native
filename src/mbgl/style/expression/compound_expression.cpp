@@ -181,20 +181,6 @@ struct Signature<Lambda, std::enable_if_t<std::is_class<Lambda>::value>>
 
 using Definition = CompoundExpressionRegistry::Definition;
 
-// Helper for creating expression Definition from one or more lambdas
-template <typename ...Evals, typename std::enable_if_t<sizeof...(Evals) != 0, int> = 0>
-static std::pair<std::string, Definition> define(std::string name, Evals... evalFunctions) {
-    Definition definition;
-    util::ignore((definition.push_back(std::make_unique<detail::Signature<Evals>>(evalFunctions)), 0)...);
-    const type::Type& t0 = definition[0]->result;
-    for (const auto& signature : definition) {
-        assert(t0 == signature->result);
-        (void)signature; // avoid unused variable warning
-        (void)t0; // avoid unused variable warning
-    }
-    return std::pair<std::string, Definition>(name, std::move(definition));
-}
-
 template <typename T>
 Result<T> assertion(const Value& v) {
     if (!v.is<T>()) {
@@ -238,24 +224,26 @@ Result<bool> equal(const T& lhs, const T& rhs) { return lhs == rhs; }
 template <typename T>
 Result<bool> notEqual(const T& lhs, const T& rhs) { return lhs != rhs; }
 
-
-template <typename ...Entries>
-std::unordered_map<std::string, CompoundExpressionRegistry::Definition> initializeDefinitions(Entries... entries) {
-    std::unordered_map<std::string, CompoundExpressionRegistry::Definition> definitions;
-    util::ignore((definitions.insert(std::move(entries)), 0)...);
-    return definitions;
+template <typename Fn>
+static std::unique_ptr<detail::SignatureBase> makeSignature(Fn evaluateFunction) {
+    return std::make_unique<detail::Signature<Fn>>(evaluateFunction);
 }
 
-std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definitions = initializeDefinitions(
-    define("e", []() -> Result<double> { return 2.718281828459045; }),
-    define("pi", []() -> Result<double> { return 3.141592653589793; }),
-    define("ln2", []() -> Result<double> { return 0.6931471805599453; }),
+std::unordered_map<std::string, CompoundExpressionRegistry::Definition> initializeDefinitions() {
+    std::unordered_map<std::string, CompoundExpressionRegistry::Definition> definitions;
+    auto define = [&](std::string name, auto fn) {
+        definitions[name].push_back(makeSignature(fn));
+    };
+    
+    define("e", []() -> Result<double> { return 2.718281828459045; });
+    define("pi", []() -> Result<double> { return 3.141592653589793; });
+    define("ln2", []() -> Result<double> { return 0.6931471805599453; });
 
-    define("typeof", [](const Value& v) -> Result<std::string> { return toString(typeOf(v)); }),
-    define("number", assertion<double>),
-    define("string", assertion<std::string>),
-    define("boolean", assertion<bool>),
-    define("object", assertion<std::unordered_map<std::string, Value>>),
+    define("typeof", [](const Value& v) -> Result<std::string> { return toString(typeOf(v)); });
+    define("number", assertion<double>);
+    define("string", assertion<std::string>);
+    define("boolean", assertion<bool>);
+    define("object", assertion<std::unordered_map<std::string, Value>>);
     
     define("to-string", [](const Value& value) -> Result<std::string> {
         return value.match(
@@ -271,7 +259,7 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
             },
             [](const auto& v) -> Result<std::string> { return stringify(v); }
         );
-    }),
+    });
     define("to-number", [](const Value& v) -> Result<double> {
         optional<double> result = v.match(
             [](const double f) -> optional<double> { return f; },
@@ -290,7 +278,7 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
             };
         }
         return *result;
-    }),
+    });
     define("to-boolean", [](const Value& v) -> Result<bool> {
         return v.match(
             [&] (double f) { return (bool)f; },
@@ -299,10 +287,10 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
             [&] (const NullValue&) { return false; },
             [&] (const auto&) { return true; }
         );
-    }),
+    });
     define("to-rgba", [](const mbgl::Color& color) -> Result<std::array<double, 4>> {
         return std::array<double, 4> {{ color.r, color.g, color.b, color.a }};
-    }),
+    });
     
     define("to-color", [](const Value& colorValue) -> Result<mbgl::Color> {
         return colorValue.match(
@@ -341,10 +329,10 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
             }
         );
     
-    }),
+    });
     
-    define("rgba", rgba),
-    define("rgb", [](double r, double g, double b) { return rgba(r, g, b, 1.0f); }),
+    define("rgba", rgba);
+    define("rgb", [](double r, double g, double b) { return rgba(r, g, b, 1.0f); });
     
     define("zoom", [](const EvaluationParameters& params) -> Result<double> {
         if (!params.zoom) {
@@ -353,7 +341,7 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
             };
         }
         return *(params.zoom);
-    }),
+    });
     
     define("has", [](const EvaluationParameters& params, const std::string& key) -> Result<bool> {
         if (!params.feature) {
@@ -363,9 +351,10 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
         }
         
         return params.feature->getValue(key) ? true : false;
-    }, [](const std::string& key, const std::unordered_map<std::string, Value>& object) -> Result<bool> {
+    });
+    define("has", [](const std::string& key, const std::unordered_map<std::string, Value>& object) -> Result<bool> {
         return object.find(key) != object.end();
-    }),
+    });
     
     define("get", [](const EvaluationParameters& params, const std::string& key) -> Result<Value> {
         if (!params.feature) {
@@ -381,20 +370,22 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
             };
         }
         return Value(toExpressionValue(*propertyValue));
-    }, [](const std::string& key, const std::unordered_map<std::string, Value>& object) -> Result<Value> {
+    });
+    define("get", [](const std::string& key, const std::unordered_map<std::string, Value>& object) -> Result<Value> {
         if (object.find(key) == object.end()) {
             return EvaluationError {
                 "Property '" + key + "' not found in object"
             };
         }
         return object.at(key);
-    }),
+    });
     
     define("length", [](const std::vector<Value>& arr) -> Result<double> {
         return arr.size();
-    }, [] (const std::string s) -> Result<double> {
+    });
+    define("length", [] (const std::string s) -> Result<double> {
         return s.size();
-    }),
+    });
     
     define("properties", [](const EvaluationParameters& params) -> Result<std::unordered_map<std::string, Value>> {
         if (!params.feature) {
@@ -408,7 +399,7 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
             result[entry.first] = toExpressionValue(entry.second);
         }
         return result;
-    }),
+    });
     
     define("geometry-type", [](const EvaluationParameters& params) -> Result<std::string> {
         if (!params.feature) {
@@ -427,7 +418,7 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
         } else {
             return "Unknown";
         }
-    }),
+    });
     
     define("id", [](const EvaluationParameters& params) -> Result<Value> {
         if (!params.feature) {
@@ -445,7 +436,7 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
                 return toExpressionValue(mbgl::Value(idValue));
             }
         );
-    }),
+    });
     
     define("+", [](const Varargs<double>& args) -> Result<double> {
         double sum = 0.0f;
@@ -453,29 +444,28 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
             sum += arg;
         }
         return sum;
-    }),
-    define("-",
-        [](double a, double b) -> Result<double> { return a - b; },
-        [](double a) -> Result<double> { return -a; }),
+    });
+    define("-", [](double a, double b) -> Result<double> { return a - b; });
+    define("-", [](double a) -> Result<double> { return -a; });
     define("*", [](const Varargs<double>& args) -> Result<double> {
         double prod = 1.0f;
         for (auto arg : args) {
             prod *= arg;
         }
         return prod;
-    }),
-    define("/", [](double a, double b) -> Result<double> { return a / b; }),
-    define("%", [](double a, double b) -> Result<double> { return fmod(a, b); }),
-    define("^", [](double a, double b) -> Result<double> { return pow(a, b); }),
-    define("log10", [](double x) -> Result<double> { return log10(x); }),
-    define("ln", [](double x) -> Result<double> { return log(x); }),
-    define("log2", [](double x) -> Result<double> { return log2(x); }),
-    define("sin", [](double x) -> Result<double> { return sin(x); }),
-    define("cos", [](double x) -> Result<double> { return cos(x); }),
-    define("tan", [](double x) -> Result<double> { return tan(x); }),
-    define("asin", [](double x) -> Result<double> { return asin(x); }),
-    define("acos", [](double x) -> Result<double> { return acos(x); }),
-    define("atan", [](double x) -> Result<double> { return atan(x); }),
+    });
+    define("/", [](double a, double b) -> Result<double> { return a / b; });
+    define("%", [](double a, double b) -> Result<double> { return fmod(a, b); });
+    define("^", [](double a, double b) -> Result<double> { return pow(a, b); });
+    define("log10", [](double x) -> Result<double> { return log10(x); });
+    define("ln", [](double x) -> Result<double> { return log(x); });
+    define("log2", [](double x) -> Result<double> { return log2(x); });
+    define("sin", [](double x) -> Result<double> { return sin(x); });
+    define("cos", [](double x) -> Result<double> { return cos(x); });
+    define("tan", [](double x) -> Result<double> { return tan(x); });
+    define("asin", [](double x) -> Result<double> { return asin(x); });
+    define("acos", [](double x) -> Result<double> { return acos(x); });
+    define("atan", [](double x) -> Result<double> { return atan(x); });
     
     define("min", [](const Varargs<double>& args) -> Result<double> {
         double result = std::numeric_limits<double>::infinity();
@@ -483,62 +473,70 @@ std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definiti
             result = fmin(arg, result);
         }
         return result;
-    }),
+    });
     define("max", [](const Varargs<double>& args) -> Result<double> {
         double result = -std::numeric_limits<double>::infinity();
         for (double arg : args) {
             result = fmax(arg, result);
         }
         return result;
-    }),
+    });
     
-    define("==", equal<double>, equal<const std::string&>, equal<bool>, equal<NullValue>),
-    define("!=", notEqual<double>, notEqual<const std::string&>, notEqual<bool>, notEqual<NullValue>),
-    define(">", [](double lhs, double rhs) -> Result<bool> { return lhs > rhs; },
-        [](const std::string& lhs, const std::string& rhs) -> Result<bool> { return lhs > rhs; }
-    ),
-    define(">=", [](double lhs, double rhs) -> Result<bool> { return lhs >= rhs; },
-        [](const std::string& lhs, const std::string& rhs) -> Result<bool> { return lhs >= rhs; }
-    ),
-    define("<", [](double lhs, double rhs) -> Result<bool> { return lhs < rhs; },
-        [](const std::string& lhs, const std::string& rhs) -> Result<bool> { return lhs < rhs; }
-    ),
-    define("<=", [](double lhs, double rhs) -> Result<bool> { return lhs <= rhs; },
-        [](const std::string& lhs, const std::string& rhs) -> Result<bool> { return lhs <= rhs; }
-    ),
+    define("==", equal<double>);
+    define("==", equal<const std::string&>);
+    define("==", equal<bool>);
+    define("==", equal<NullValue>);
+
+    define("==", notEqual<double>);
+    define("==", notEqual<const std::string&>);
+    define("==", notEqual<bool>);
+    define("==", notEqual<NullValue>);
+
+    define(">", [](double lhs, double rhs) -> Result<bool> { return lhs > rhs; });
+    define(">", [](const std::string& lhs, const std::string& rhs) -> Result<bool> { return lhs > rhs; });
+    define(">=", [](double lhs, double rhs) -> Result<bool> { return lhs >= rhs; });
+    define(">=",[](const std::string& lhs, const std::string& rhs) -> Result<bool> { return lhs >= rhs; });
+    define("<", [](double lhs, double rhs) -> Result<bool> { return lhs < rhs; });
+    define("<", [](const std::string& lhs, const std::string& rhs) -> Result<bool> { return lhs < rhs; });
+    define("<=", [](double lhs, double rhs) -> Result<bool> { return lhs <= rhs; });
+    define("<=", [](const std::string& lhs, const std::string& rhs) -> Result<bool> { return lhs <= rhs; });
     
     define("||", [](const Varargs<bool>& args) -> Result<bool> {
         bool result = false;
         for (auto arg : args) result = result || arg;
         return result;
-    }),
+    });
     define("&&", [](const Varargs<bool>& args) -> Result<bool> {
         bool result = true;
         for (bool arg : args) result = result && arg;
         return result;
-    }),
-    define("!", [](bool e) -> Result<bool> { return !e; }),
+    });
+    define("!", [](bool e) -> Result<bool> { return !e; });
     
     define("upcase", [](const std::string& input) -> Result<std::string> {
         std::string s = input;
         std::transform(s.begin(), s.end(), s.begin(),
                        [](unsigned char c){ return std::toupper(c); });
         return s;
-    }),
+    });
     define("downcase", [](const std::string& input) -> Result<std::string> {
         std::string s = input;
         std::transform(s.begin(), s.end(), s.begin(),
                        [](unsigned char c){ return std::tolower(c); });
         return s;
-    }),
+    });
     define("concat", [](const Varargs<std::string>& args) -> Result<std::string> {
         std::string s;
         for (const std::string& arg : args) {
             s += arg;
         }
         return s;
-    })
-);
+    });
+    
+    return definitions;
+}
+
+std::unordered_map<std::string, Definition> CompoundExpressionRegistry::definitions = initializeDefinitions();
 
 
 ParseResult createCompoundExpression(const std::string& name,
