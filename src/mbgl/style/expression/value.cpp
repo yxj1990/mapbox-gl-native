@@ -208,6 +208,10 @@ Value toExpressionValue(const T& value) {
     return ValueConverter<T>::toExpressionValue(value);
 }
 
+optional<Value> fromExpressionValue(const Value& v) {
+    return optional<Value>(v);
+}
+
 template <typename T>
 std::enable_if_t< !std::is_convertible<T, Value>::value,
 optional<T>> fromExpressionValue(const Value& v)

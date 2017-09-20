@@ -5,27 +5,30 @@ namespace style {
 namespace expression {
 
 EvaluationResult At::evaluate(const EvaluationParameters& params) const {
-    auto i = index->evaluate<double>(params);
-    auto inputArray = input->evaluate<std::vector<Value>>(params);
-    if (!i) {
-        return i.error();
+    const EvaluationResult evaluatedIndex = index->evaluate(params);
+    const EvaluationResult evaluatedInput = input->evaluate(params);
+    if (!evaluatedIndex) {
+        return evaluatedIndex.error();
     }
-    if (!inputArray) {
-        return inputArray.error();
+    if (!evaluatedInput) {
+        return evaluatedInput.error();
     }
     
-    if (*i < 0 || *i >= inputArray->size()) {
+    const auto i = *fromExpressionValue<double>(*evaluatedIndex);
+    const auto inputArray = *fromExpressionValue<std::vector<Value>>(*evaluatedInput);
+    
+    if (i < 0 || i >= inputArray.size()) {
         return EvaluationError {
-            "Array index out of bounds: " + stringify(*i) +
-            " > " + std::to_string(inputArray->size()) + "."
+            "Array index out of bounds: " + stringify(i) +
+            " > " + std::to_string(inputArray.size()) + "."
         };
     }
-    if (*i != std::floor(*i)) {
+    if (i != std::floor(i)) {
         return EvaluationError {
-            "Array index must be an integer, but found " + stringify(*i) + " instead."
+            "Array index must be an integer, but found " + stringify(i) + " instead."
         };
     }
-    return inputArray->at(static_cast<std::size_t>(*i));
+    return inputArray[static_cast<std::size_t>(i)];
 }
 
 void At::accept(std::function<void(const Expression*)> visit) const {

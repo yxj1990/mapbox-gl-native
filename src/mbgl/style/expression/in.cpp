@@ -10,10 +10,12 @@ EvaluationResult In::evaluate(const EvaluationParameters& params) const {
         return needleValue.error();
     }
     
-    const Result<std::vector<Value>> haystackValue = haystack->evaluate<std::vector<Value>>(params);
-    if (!haystackValue) {
-        return haystackValue.error();
+    const EvaluationResult evaluatedHaystack = haystack->evaluate(params);
+    if (!evaluatedHaystack) {
+        return evaluatedHaystack.error();
     }
+    
+    const auto haystackValue = evaluatedHaystack->get<std::vector<Value>>();
     
     type::Type needleType = typeOf(*needleValue);
     if (needleType == type::Object || needleType == type::Color || needleType.template is<type::Array>()) {
@@ -22,8 +24,8 @@ EvaluationResult In::evaluate(const EvaluationParameters& params) const {
         };
     }
     
-    return EvaluationResult(std::any_of(haystackValue->begin(),
-                            haystackValue->end(),
+    return EvaluationResult(std::any_of(haystackValue.begin(),
+                            haystackValue.end(),
                             [&](const Value& v) { return v == *needleValue; }));
 };
 

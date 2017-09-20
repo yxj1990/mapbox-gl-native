@@ -42,9 +42,12 @@ public:
     {}
 
     T evaluate(float zoom) const {
-        auto result = expression->evaluate<T>(expression::EvaluationParameters(zoom, nullptr));
-        if (!result) return T();
-        return *result;
+        const expression::EvaluationResult result = expression->evaluate(expression::EvaluationParameters(zoom, nullptr));
+        if (result) {
+           const optional<T> typed = expression::fromExpressionValue<T>(*result);
+           return typed ? *typed : T();
+        }
+        return T();
     }
     
     float interpolationFactor(const Range<float>& inputLevels, const float& inputValue) const {

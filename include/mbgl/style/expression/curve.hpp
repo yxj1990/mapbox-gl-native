@@ -70,20 +70,21 @@ public:
     {}
     
     EvaluationResult evaluate(const EvaluationParameters& params) const override {
-        const Result<float> x = input->evaluate<float>(params);
-        if (!x) { return x.error(); }
+        const EvaluationResult evaluatedInput = input->evaluate(params);
+        if (!evaluatedInput) { return evaluatedInput.error(); }
+        float x = *fromExpressionValue<float>(*evaluatedInput);
         
         if (stops.empty()) {
             return EvaluationError { "No stops in exponential curve." };
         }
 
-        auto it = stops.upper_bound(*x);
+        auto it = stops.upper_bound(x);
         if (it == stops.end()) {
             return stops.rbegin()->second->evaluate(params);
         } else if (it == stops.begin()) {
             return stops.begin()->second->evaluate(params);
         } else {
-            float t = interpolationFactor({ std::prev(it)->first, it->first }, *x);
+            float t = interpolationFactor({ std::prev(it)->first, it->first }, x);
             
             if (t == 0.0f) {
                 return std::prev(it)->second->evaluate(params);

@@ -9,16 +9,6 @@ namespace expression {
 
 namespace detail {
 
-template <typename T>
-std::decay_t<T> get(const Value& value);
-
-template <> Value get<Value const&>(const Value& value) {
-    return value;
-}
-template <typename T> std::decay_t<T> get(const Value& value) {
-    return value.get<std::decay_t<T>>();
-}
-
 /*
     The Signature<Fn> structs are wrappers around an "evaluate()" function whose
     purpose is to extract the necessary Type data from the evaluate function's
@@ -75,8 +65,7 @@ private:
         for (const auto& arg : evaluated) {
             if(!arg) return arg.error();
         }
-        // TODO: assert correct runtime type of each arg value
-        const R value = evaluate(get<Params>(*(evaluated[I]))...);
+        const R value = evaluate(*fromExpressionValue<std::decay_t<Params>>(*(evaluated[I]))...);
         if (!value) return value.error();
         return *value;
     }
@@ -103,9 +92,9 @@ struct Signature<R (const Varargs<T>&)> : SignatureBase {
     EvaluationResult apply(const EvaluationParameters& evaluationParameters, const Args& args) const {
         Varargs<T> evaluated;
         for (const auto& arg : args) {
-            const Result<T> evaluatedArg = arg->evaluate<T>(evaluationParameters);
+            const EvaluationResult evaluatedArg = arg->evaluate(evaluationParameters);
             if(!evaluatedArg) return evaluatedArg.error();
-            evaluated.push_back(*evaluatedArg);
+            evaluated.push_back(*fromExpressionValue<std::decay_t<T>>(*evaluatedArg));
         }
         const R value = evaluate(evaluated);
         if (!value) return value.error();
@@ -148,7 +137,7 @@ private:
             if(!arg) return arg.error();
         }
         // TODO: assert correct runtime type of each arg value
-        const R value = evaluate(evaluationParameters, get<Params>(*(evaluated[I]))...);
+        const R value = evaluate(evaluationParameters, *fromExpressionValue<std::decay_t<Params>>(*(evaluated[I]))...);
         if (!value) return value.error();
         return *value;
     }

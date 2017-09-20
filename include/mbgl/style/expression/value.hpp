@@ -57,11 +57,20 @@ type::Type valueTypeToExpressionType();
   Conversions between style value types and expression::Value
 */
 
-// no-op overloads for case where the target type is a member of expression::Value
+// no-op overloads
 Value toExpressionValue(const Value&);
 
+// T = Value (just wrap in optional)
 template <typename T>
-std::enable_if_t< std::is_convertible<T, Value>::value,
+std::enable_if_t<std::is_same<T, Value>::value,
+optional<T>> fromExpressionValue(const Value& v)
+{
+    return optional<T>(v);
+}
+
+// T = member type of Value
+template <typename T>
+std::enable_if_t< std::is_convertible<T, Value>::value && !std::is_same<T, Value>::value,
 optional<T>> fromExpressionValue(const Value& v)
 {
     return v.template is<T>() ? v.template get<T>() : optional<T>();

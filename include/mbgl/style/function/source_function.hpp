@@ -47,11 +47,12 @@ public:
 
     template <class Feature>
     T evaluate(const Feature& feature, T finalDefaultValue) const {
-        auto result = expression->evaluate<T>(expression::EvaluationParameters(&feature));
-        if (!result) {
-            return finalDefaultValue;
+        const expression::EvaluationResult result = expression->evaluate(expression::EvaluationParameters(&feature));
+        if (result) {
+            const optional<T> typed = expression::fromExpressionValue<T>(*result);
+            return typed ? *typed : finalDefaultValue;
         }
-        return *result;
+        return finalDefaultValue;
     }
 
     friend bool operator==(const SourceFunction& lhs,

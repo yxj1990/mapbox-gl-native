@@ -107,25 +107,6 @@ public:
     virtual EvaluationResult evaluate(const EvaluationParameters& params) const = 0;
     
     virtual void accept(std::function<void(const Expression*)>) const = 0;
-    
-    /*
-      Evaluate this expression to a particular type T. 
-      (See expression/value.xpp for possible types T.)
-    */
-    template <typename T>
-    Result<T> evaluate(const EvaluationParameters& params) {
-        const EvaluationResult result = evaluate(params);
-        if (!result) { return result.error(); }
-        optional<T> converted = fromExpressionValue<T>(*result);
-        if (converted) {
-            return *converted;
-        } else {
-            return EvaluationError {
-                "Expected value to be of type " + toString(valueTypeToExpressionType<T>()) +
-                ", but found " + toString(typeOf(*result)) + " instead."
-            };
-        }
-    }
 
     bool isFeatureConstant() const;
     bool isZoomConstant() const;

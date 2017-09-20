@@ -6,11 +6,11 @@ namespace expression {
 
 EvaluationResult Case::evaluate(const EvaluationParameters& params) const {
     for (const auto& branch : branches) {
-        const Result<bool> condition = branch.first->template evaluate<bool>(params);
-        if (!condition) {
-            return condition.error();
+        const EvaluationResult evaluatedTest = branch.first->evaluate(params);
+        if (!evaluatedTest) {
+            return evaluatedTest.error();
         }
-        if (*condition) {
+        if (evaluatedTest->get<bool>()) {
             return branch.second->evaluate(params);
         }
     }

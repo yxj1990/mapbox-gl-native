@@ -15,12 +15,12 @@ void Match<T>::accept(std::function<void(const Expression*)> visit) const {
 }
 
 template<> EvaluationResult Match<std::string>::evaluate(const EvaluationParameters& params) const {
-    const Result<std::string> inputValue = input->evaluate<std::string>(params);
+    const EvaluationResult inputValue = input->evaluate(params);
     if (!inputValue) {
         return inputValue.error();
     }
 
-    auto it = branches.find(*inputValue);
+    auto it = branches.find(inputValue->get<std::string>());
     if (it != branches.end()) {
         return (*it).second->evaluate(params);
     }
@@ -29,13 +29,14 @@ template<> EvaluationResult Match<std::string>::evaluate(const EvaluationParamet
 }
 
 template<> EvaluationResult Match<int64_t>::evaluate(const EvaluationParameters& params) const {
-    const Result<float> inputValue = input->evaluate<float>(params);
+    const EvaluationResult inputValue = input->evaluate(params);
     if (!inputValue) {
         return inputValue.error();
     }
     
-    int64_t rounded = std::floor(*inputValue);
-    if (*inputValue == rounded) {
+    const auto numeric = inputValue->get<double>();
+    int64_t rounded = std::floor(numeric);
+    if (numeric == rounded) {
         auto it = branches.find(rounded);
         if (it != branches.end()) {
             return (*it).second->evaluate(params);
