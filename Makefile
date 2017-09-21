@@ -553,6 +553,17 @@ run-android-ui-test-$1-%: platform/android/configuration.gradle
 	-adb uninstall com.mapbox.mapboxsdk.testapp 2> /dev/null
 	cd platform/android && $(MBGL_ANDROID_GRADLE) -Pmapbox.abis=$2 :MapboxGLAndroidSDKTestApp:connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.class="$$*"
 
+# Run render tests with pixelmatch
+.PHONY: run-android-render-test-$1
+run-android-render-test-$1: $(BUILD_DEPS) platform/android/configuration.gradle 
+	-adb uninstall com.mapbox.mapboxsdk.testapp 2> /dev/null
+	# run RenderTest.java to generate static map images
+	cd platform/android && $(MBGL_ANDROID_GRADLE) -Pmapbox.abis=$2 :MapboxGLAndroidSDKTestApp:connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.class="com.mapbox.mapboxsdk.testapp.render.RenderTest"
+	# pull generated images from the device
+	adb pull "`adb shell 'printenv EXTERNAL_STORAGE' | tr -d '\r'`/mapbox" platform/android/build/render-test
+	# copy expected result and run pixelmatch
+	python platform/android/scripts/run-render-test.py
+
 endef
 
 # Explodes the arguments into individual variables
@@ -640,6 +651,11 @@ android-lint-test-app: platform/android/configuration.gradle
 .PHONY: android-javadoc
 android-javadoc: platform/android/configuration.gradle
 	cd platform/android && $(MBGL_ANDROID_GRADLE) -Pmapbox.abis=none :MapboxGLAndroidSDK:javadocrelease
+
+# Update render tests
+,PHONY: update-android-render-test
+update-android-render-test:
+	python platform/android/scripts/update-render-expected.py
 
 # Open Android Studio if machine is macos
 ifeq ($(HOST_PLATFORM), macos)
