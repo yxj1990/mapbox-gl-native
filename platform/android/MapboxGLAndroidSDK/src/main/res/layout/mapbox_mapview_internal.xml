@@ -31,6 +31,8 @@
         android:id="@+id/logoView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="@dimen/mapbox_four_dp"
         android:contentDescription="@null"
         android:src="@drawable/mapbox_logo_icon"/>
 
@@ -38,9 +40,14 @@
         android:id="@+id/attributionView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="4dp"
+        android:layout_gravity="bottom|start"
+        android:layout_marginEnd="@dimen/mapbox_four_dp"
+        android:layout_marginLeft="@dimen/mapbox_ninety_two_dp"
+        android:layout_marginRight="@dimen/mapbox_four_dp"
+        android:layout_marginStart="@dimen/mapbox_ninety_two_dp"
+        android:layout_marginTop="@dimen/mapbox_four_dp"
         android:adjustViewBounds="true"
-        android:clickable="true"
-        android:focusable="true"
         android:contentDescription="@string/mapbox_attributionsIconContentDescription"
         android:src="@drawable/mapbox_info_bg_selector"/>
 
