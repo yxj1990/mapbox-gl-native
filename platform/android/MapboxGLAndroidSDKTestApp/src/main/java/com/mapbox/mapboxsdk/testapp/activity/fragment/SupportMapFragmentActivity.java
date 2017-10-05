@@ -15,7 +15,7 @@ import com.mapbox.mapboxsdk.maps.SupportMapFragment;
 import com.mapbox.mapboxsdk.testapp.R;
 
 /**
- * Test activity showcasing using the MapFragment API using Support Library Fragments.
+ * Test activity showcasing using the BaseMapFragment API using Support Library Fragments.
  * <p>
  * Uses MapboxMapOptions to initialise the Fragment.
  * </p>

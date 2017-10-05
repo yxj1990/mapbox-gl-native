@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<RelativeLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -7,9 +7,16 @@
     android:orientation="vertical"
     tools:context=".activity.maplayout.SimpleMapActivity">
 
-    <com.mapbox.mapboxsdk.maps.MapView
-        android:id="@id/mapView"
+    <com.mapbox.mapboxsdk.testapp.activity.maplayout.JumpingViewPager
+        android:id="@+id/viewpager"
         android:layout_width="match_parent"
+        android:layout_above="@+id/tablayout"
         android:layout_height="match_parent"/>
 
-</LinearLayout>
+    <android.support.design.widget.TabLayout
+        android:id="@+id/tablayout"
+        android:layout_alignParentBottom="true"
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"/>
+
+</RelativeLayout>

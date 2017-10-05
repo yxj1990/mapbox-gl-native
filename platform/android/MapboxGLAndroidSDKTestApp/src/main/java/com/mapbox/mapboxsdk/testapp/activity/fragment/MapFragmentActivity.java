@@ -1,7 +1,9 @@
 package com.mapbox.mapboxsdk.testapp.activity.fragment;
 
-import android.app.FragmentTransaction;
 import android.os.Bundle;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AppCompatActivity;
 
 import com.mapbox.mapboxsdk.camera.CameraPosition;
@@ -15,58 +17,26 @@ import com.mapbox.mapboxsdk.maps.OnMapReadyCallback;
 import com.mapbox.mapboxsdk.testapp.R;
 
 /**
- * Test activity showcasing using the MapFragment API using SDK Fragments.
+ * Test activity showcasing using the BaseMapFragment API using SDK Fragments.
  * <p>
  * Uses MapboxMapOptions to initialise the Fragment.
  * </p>
  */
-public class MapFragmentActivity extends AppCompatActivity implements OnMapReadyCallback {
-
-  private MapboxMap mapboxMap;
+public class MapFragmentActivity extends AppCompatActivity {
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_map_fragment);
-
-    MapFragment mapFragment;
-    if (savedInstanceState == null) {
-      final FragmentTransaction transaction = getFragmentManager().beginTransaction();
-
-      MapboxMapOptions options = new MapboxMapOptions();
-      options.styleUrl(Style.OUTDOORS);
-
-      options.scrollGesturesEnabled(false);
-      options.zoomGesturesEnabled(false);
-      options.tiltGesturesEnabled(false);
-      options.rotateGesturesEnabled(false);
-
-      options.debugActive(false);
-
-      LatLng dc = new LatLng(38.90252, -77.02291);
-
-      options.minZoomPreference(9);
-      options.maxZoomPreference(11);
-      options.camera(new CameraPosition.Builder()
-        .target(dc)
-        .zoom(11)
-        .build());
-
-      mapFragment = MapFragment.newInstance(options);
-
-      transaction.add(R.id.fragment_container, mapFragment, "com.mapbox.map");
-      transaction.commit();
-    } else {
-      mapFragment = (MapFragment) getFragmentManager().findFragmentByTag("com.mapbox.map");
-    }
-
-    mapFragment.getMapAsync(this);
+    replaceFragment(new FirstFragment());
   }
 
-  @Override
-  public void onMapReady(MapboxMap map) {
-    mapboxMap = map;
-    mapboxMap.animateCamera(
-      CameraUpdateFactory.newCameraPosition(new CameraPosition.Builder().tilt(45.0).build()), 10000);
+  public void replaceFragment(Fragment fragment) {
+    FragmentManager fm = getSupportFragmentManager();
+    FragmentTransaction ft = fm.beginTransaction();
+    ft.replace(R.id.fragment_container, fragment);
+    ft.addToBackStack(fragment.getClass().getName());
+    ft.setTransition(android.app.FragmentTransaction.TRANSIT_FRAGMENT_OPEN);
+    ft.commitAllowingStateLoss();
   }
 }
