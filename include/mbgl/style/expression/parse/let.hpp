@@ -14,8 +14,7 @@ namespace style {
 namespace expression {
 
 struct ParseLet {
-    template <typename V>
-    static ParseResult parse(const V& value, ParsingContext ctx) {
+    static ParseResult parse(const mbgl::style::conversion::Value& value, ParsingContext ctx) {
         using namespace mbgl::style::conversion;
         assert(isArray(value));
         
@@ -61,8 +60,7 @@ struct ParseLet {
 };
 
 struct ParseVar {
-    template <typename V>
-    static ParseResult parse(const V& value, ParsingContext ctx) {
+    static ParseResult parse(const mbgl::style::conversion::Value& value, ParsingContext ctx) {
         using namespace mbgl::style::conversion;
         assert(isArray(value));
         

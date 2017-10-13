@@ -11,8 +11,7 @@ namespace style {
 namespace expression {
 
 struct ParseArrayAssertion {
-    template <class V>
-    static ParseResult parse(const V& value, ParsingContext ctx) {
+    static ParseResult parse(const mbgl::style::conversion::Value& value, ParsingContext ctx) {
         using namespace mbgl::style::conversion;
         
         static std::unordered_map<std::string, type::Type> itemTypes {

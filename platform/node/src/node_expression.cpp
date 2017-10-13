@@ -72,7 +72,7 @@ void NodeExpression::Parse(const Nan::FunctionCallbackInfo<v8::Value>& info) {
 
     try {
         std::vector<ParsingError> errors;
-        ParseResult parsed = parseExpression(expr, ParsingContext(errors, expected));
+        ParseResult parsed = parseExpression(mbgl::style::conversion::Value(expr), ParsingContext(errors, expected));
         if (parsed) {
             assert(errors.size() == 0);
             auto nodeExpr = new NodeExpression(std::move(*parsed));
@@ -174,15 +174,9 @@ void NodeExpression::Evaluate(const Nan::FunctionCallbackInfo<v8::Value>& info) 
 
     float zoom = info[0]->NumberValue();
 
-    // Pending https://github.com/mapbox/mapbox-gl-native/issues/5623,
-    // stringify the geojson feature in order to use convert<GeoJSON, string>()
     Nan::JSON NanJSON;
-    Nan::MaybeLocal<v8::String> geojsonString = NanJSON.Stringify(Nan::To<v8::Object>(info[1]).ToLocalChecked());
-    if (geojsonString.IsEmpty()) {
-        return Nan::ThrowTypeError("couldn't stringify JSON");
-    }
     conversion::Error conversionError;
-    mbgl::optional<mbgl::GeoJSON> geoJSON = conversion::convert<mbgl::GeoJSON, std::string>(*Nan::Utf8String(geojsonString.ToLocalChecked()), conversionError);
+    mbgl::optional<mbgl::GeoJSON> geoJSON = conversion::convert<mbgl::GeoJSON>(info[1], conversionError);
     if (!geoJSON) {
         Nan::ThrowTypeError(conversionError.message.c_str());
         return;

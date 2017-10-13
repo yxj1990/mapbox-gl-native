@@ -59,7 +59,7 @@ TEST(StyleConversion, CompositeFunctionExpression) {
     auto parseFunction = [&](const std::string& src) {
         JSDocument doc;
         doc.Parse<0>(src);
-        return convert<DataDrivenPropertyValue<float>, JSValue>(doc, error);
+        return convert<DataDrivenPropertyValue<float>>(doc, error);
     };
 
     auto fn1 = parseFunction(R"({"expression": ["curve", ["linear"], ["zoom"], 0, ["number", ["get", "x"]], 10, 10]})");

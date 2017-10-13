@@ -17,8 +17,7 @@ struct ParseCurve {
                                  ExponentialInterpolator,
                                  CubicBezierInterpolator>;
 
-    template <typename V>
-    static ParseResult parse(const V& value, ParsingContext ctx) {
+    static ParseResult parse(const mbgl::style::conversion::Value& value, ParsingContext ctx) {
         using namespace mbgl::style::conversion;
         assert(isArray(value));
 
@@ -30,7 +29,7 @@ struct ParseCurve {
             ctx.error("Expected an interpolation type expression.");
             return ParseResult();
         }
-        const V& interp = arrayMember(value, 1);
+        const mbgl::style::conversion::Value& interp = arrayMember(value, 1);
         if (!isArray(interp) || arrayLength(interp) == 0) {
             ctx.error("Expected an interpolation type expression.");
             return ParseResult();

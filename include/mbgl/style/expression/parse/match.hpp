@@ -12,8 +12,7 @@ namespace style {
 namespace expression {
 
 struct ParseMatch {
-    template <class V>
-    static ParseResult parse(const V& value, ParsingContext ctx) {
+    static ParseResult parse(const mbgl::style::conversion::Value& value, ParsingContext ctx) {
         using namespace mbgl::style::conversion;
         
         assert(isArray(value));
@@ -108,8 +107,7 @@ struct ParseMatch {
     }
 
 private:
-    template <typename V>
-    static optional<InputType> parseInputValue(const V& input, ParsingContext ctx, optional<type::Type>& inputType) {
+    static optional<InputType> parseInputValue(const mbgl::style::conversion::Value& input, ParsingContext ctx, optional<type::Type>& inputType) {
         using namespace mbgl::style::conversion;
         optional<InputType> result;
         optional<type::Type> type;

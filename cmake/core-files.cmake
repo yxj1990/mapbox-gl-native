@@ -422,6 +422,7 @@ set(MBGL_CORE_FILES
     src/mbgl/style/expression/in.cpp
     src/mbgl/style/expression/let.cpp
     src/mbgl/style/expression/match.cpp
+    src/mbgl/style/expression/parse.cpp
     src/mbgl/style/expression/value.cpp
 
     # style/expression/parse

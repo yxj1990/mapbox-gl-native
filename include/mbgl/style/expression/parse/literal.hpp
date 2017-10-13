@@ -15,8 +15,7 @@ namespace style {
 namespace expression {
 
 struct ParseLiteral {
-    template <class V>
-    static ParseResult parse(const V& value, ParsingContext ctx) {
+    static ParseResult parse(const mbgl::style::conversion::Value& value, ParsingContext ctx) {
         const optional<Value> parsedValue = parseValue(value, ctx);
         
         if (!parsedValue) {
@@ -40,14 +39,14 @@ struct ParseLiteral {
         }
         return ParseResult(std::make_unique<Literal>(*parsedValue));
     }
-    template <class V>
-    static optional<Value> parseValue(const V& value, ParsingContext ctx) {
+
+    static optional<Value> parseValue(const mbgl::style::conversion::Value& value, ParsingContext ctx) {
         using namespace mbgl::style::conversion;
         if (isUndefined(value)) return {Null};
         if (isObject(value)) {
             std::unordered_map<std::string, Value> result;
             bool error = false;
-            eachMember(value, [&] (const std::string& k, const V& v) -> optional<conversion::Error> {
+            eachMember(value, [&] (const std::string& k, const mbgl::style::conversion::Value& v) -> optional<conversion::Error> {
                 if (!error) {
                     optional<Value> memberValue = parseValue(v, ctx);
                     if (memberValue) {

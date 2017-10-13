@@ -12,8 +12,7 @@ namespace conversion {
 using namespace mbgl::style::expression;
 
 template<> struct Converter<std::unique_ptr<Expression>> {
-    template <class V>
-    optional<std::unique_ptr<Expression>> operator()(const V& value, Error& error, type::Type expected) const {
+    optional<std::unique_ptr<Expression>> operator()(const mbgl::style::conversion::Value& value, Error& error, type::Type expected) const {
         std::vector<ParsingError> errors;
         ParseResult parsed = parseExpression(value, ParsingContext(errors, expected));
         if (parsed) {
