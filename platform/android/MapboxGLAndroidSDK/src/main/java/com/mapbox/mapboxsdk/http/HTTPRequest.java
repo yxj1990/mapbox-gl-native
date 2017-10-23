@@ -77,7 +77,8 @@ class HTTPRequest implements Callback {
       Request.Builder builder = new Request.Builder()
         .url(resourceUrl)
         .tag(resourceUrl.toLowerCase(MapboxConstants.MAPBOX_LOCALE))
-        .addHeader("User-Agent", getUserAgent());
+        .addHeader("User-Agent", getUserAgent())
+        .addHeader("Accept-Encoding", "gzip");
       if (etag.length() > 0) {
         builder = builder.addHeader("If-None-Match", etag);
       } else if (modified.length() > 0) {
