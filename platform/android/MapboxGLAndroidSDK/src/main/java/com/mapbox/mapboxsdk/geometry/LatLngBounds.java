@@ -231,6 +231,22 @@ public class LatLngBounds implements Parcelable {
     return new LatLngBounds(latNorth, lonEast, latSouth, lonWest);
   }
 
+  private static double lat_(int z, int y) {
+    double n = Math.PI - 2.0 * Math.PI * y / Math.pow(2.0, z);
+    return Math.toDegrees(Math.atan(0.5 * (Math.exp(n) - Math.exp(-n))));
+  }
+
+  private static double lon_(int z, int x) {
+    return x / Math.pow(2.0, z) * 360.0 - GeoConstants.MAX_LONGITUDE;
+  }
+
+  /**
+   * Constructs a LatLngBounds from a Tile identifier.
+   */
+  public static LatLngBounds from(int z, int x, int y) {
+    return new LatLngBounds(lat_(z, y), lon_(z, x + 1), lat_(z, y + 1), lon_(z, x));
+  }
+
   /**
    * Constructs a LatLngBounds from current bounds with an additional latitude-longitude pair.
    *
