@@ -4301,7 +4301,7 @@ public:
 
     // Remove the old icon from the style.
     if ( ! [iconIdentifier isEqualToString:fallbackIconIdentifier]) {
-        _mbglMap->removeAnnotationImage(iconIdentifier.UTF8String);
+//        _mbglMap->removeAnnotationImage(iconIdentifier.UTF8String);
     }
 
     if (annotationImage.image)
