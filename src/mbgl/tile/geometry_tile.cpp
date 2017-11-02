@@ -59,13 +59,18 @@ GeometryTile::GeometryTile(const OverscaledTileID& id_,
       glyphManager(parameters.glyphManager),
       imageManager(parameters.imageManager),
       mode(parameters.mode),
-      showCollisionBoxes(parameters.debugOptions & MapDebugOptions::Collision) {
+      showCollisionBoxes(parameters.debugOptions & MapDebugOptions::Collision),
+      fullyRenderable(false) {
 }
 
 GeometryTile::~GeometryTile() {
     glyphManager.removeRequestor(*this);
     imageManager.removeRequestor(*this);
     markObsolete();
+}
+
+bool GeometryTile::isFullyRenderable() const {
+    return fullyRenderable;
 }
 
 void GeometryTile::cancel() {
@@ -127,6 +132,7 @@ void GeometryTile::setShowCollisionBoxes(const bool showCollisionBoxes_) {
 void GeometryTile::onLayout(LayoutResult result, const uint64_t resultCorrelationID) {
     loaded = true;
     renderable = true;
+    fullyRenderable = false;
     (void)resultCorrelationID;
     nonSymbolBuckets = std::move(result.nonSymbolBuckets);
     featureIndex = std::move(result.featureIndex);
@@ -137,6 +143,7 @@ void GeometryTile::onLayout(LayoutResult result, const uint64_t resultCorrelatio
 void GeometryTile::onPlacement(PlacementResult result, const uint64_t resultCorrelationID) {
     loaded = true;
     renderable = true;
+    fullyRenderable = true;
     if (resultCorrelationID == correlationID) {
         pending = false;
     }

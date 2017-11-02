@@ -283,7 +283,7 @@ JointOpacityState Placement::getOpacity(uint32_t crossTileSymbolID) const {
 }
 
 float Placement::symbolFadeChange(TimePoint now) const {
-    if (mapMode == MapMode::Still) {
+    if (true || mapMode == MapMode::Still) {
         return 1.0;
     }
     return std::chrono::duration<float>(now - commitTime) / Duration(std::chrono::milliseconds(300));
