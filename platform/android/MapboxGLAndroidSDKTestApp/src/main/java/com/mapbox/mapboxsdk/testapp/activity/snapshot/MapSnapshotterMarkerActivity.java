@@ -23,6 +23,8 @@ import timber.log.Timber;
  */
 public class MapSnapshotterMarkerActivity extends AppCompatActivity implements MapSnapshotter.SnapshotReadyCallback {
 
+  private MapSnapshotter mapSnapshotter;
+
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
@@ -38,7 +40,7 @@ public class MapSnapshotterMarkerActivity extends AppCompatActivity implements M
 
           Timber.i("Starting snapshot");
 
-          MapSnapshotter mapSnapshotter = new MapSnapshotter(
+          mapSnapshotter = new MapSnapshotter(
             getApplicationContext(),
             new MapSnapshotter
               .Options(Math.min(container.getMeasuredWidth(), 1024), Math.min(container.getMeasuredHeight(), 1024))
@@ -48,6 +50,12 @@ public class MapSnapshotterMarkerActivity extends AppCompatActivity implements M
           mapSnapshotter.start(MapSnapshotterMarkerActivity.this);
         }
       });
+  }
+
+  @Override
+  protected void onStop() {
+    super.onStop();
+    mapSnapshotter.cancel();
   }
 
   @Override

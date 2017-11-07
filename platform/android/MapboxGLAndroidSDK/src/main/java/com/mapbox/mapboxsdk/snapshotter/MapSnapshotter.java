@@ -5,6 +5,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
+import android.os.Build;
 import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -308,6 +309,8 @@ public class MapSnapshotter {
    * @param mapSnapshot the map snapshot
    */
   private void addAttribution(Canvas canvas, Logo logo, MapSnapshot mapSnapshot) {
+    DisplayMetrics displayMetrics = context.getResources().getDisplayMetrics();
+    int margin = (int) displayMetrics.density * LOGO_MARGIN_DP;
     Bitmap original = mapSnapshot.getBitmap();
     TextView textView = new TextView(context);
     textView.setLayoutParams(new ViewGroup.LayoutParams(
@@ -317,12 +320,19 @@ public class MapSnapshotter {
     textView.setSingleLine(true);
     textView.setTextSize(11 * logo.scale);
     textView.setText(Html.fromHtml(createAttribution(mapSnapshot)));
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+      textView.setClipToOutline(true);
+    }
+    canvas.save();
     int widthMeasureSpec = View.MeasureSpec.makeMeasureSpec(original.getWidth(), View.MeasureSpec.AT_MOST);
     int heightMeasureSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
-    textView.setPadding(logo.getWidth(), (int) logo.getTop(), 0, 0);
+    textView.setPadding(margin, 0, margin, margin);
+    textView.setBackgroundResource(R.drawable.mapbox_rounded_corner);
     textView.measure(widthMeasureSpec, heightMeasureSpec);
-    textView.layout(0, 0, original.getWidth(), original.getHeight());
+    textView.layout(0, 0, textView.getMeasuredWidth(), textView.getMeasuredHeight());
+    canvas.translate(logo.getWidth(), logo.getTop());
     textView.draw(canvas);
+    canvas.restore();
   }
 
   private String createAttribution(MapSnapshot mapSnapshot) {
